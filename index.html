@@ -1,2074 +1,535 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="midnight-rose"><head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Us, Uninterrupted ✨</title>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Chat</title>
+<style>
+:root{
+  --bg:#ffffff; --panel:#f6f7f9; --text:#111418; --muted:#6b7280; --line:#e5e7eb;
+  --mine:#2563eb; --mine-text:#fff; --theirs:#eef0f3; --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0e1013; --panel:#16191e; --text:#e7e9ed; --muted:#8a92a0; --line:#232832;
+         --mine:#3b6fe0; --theirs:#1e232b; }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.hidden{display:none!important}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+/* Join screen */
+#join{height:100%;display:flex;align-items:center;justify-content:center;padding:20px}
+#join form{width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px}
+#join h1{margin:0 0 4px;font-size:22px;font-weight:600}
+#join p{margin:0;color:var(--muted);font-size:13px}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);outline:none}
+input[type=text]:focus,textarea:focus{border-color:var(--mine)}
+.primary{background:var(--mine);color:#fff;border:0;border-radius:10px;padding:11px 16px;font-weight:600}
+.primary:active{opacity:.85}
+.link{background:none;border:0;color:var(--mine);padding:0;font-size:12px}
+.row-between{display:flex;justify-content:space-between;align-items:center}
+#join-error{color:var(--err);font-size:13px;min-height:1em}
 
-  <!-- Google Fonts: Cormorant Garamond, Plus Jakarta Sans, JetBrains Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+/* Chat screen */
+#chat{height:100%;height:100dvh;display:flex;flex-direction:column;max-width:760px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);padding-top:max(10px,env(safe-area-inset-top))}
+.who{min-width:0}
+.who b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--ok)} .dot.wait{background:var(--warn)}
+.actions{display:flex;gap:4px;flex:none}
+.actions button{background:none;border:0;color:var(--muted);padding:6px 8px;border-radius:8px;font-size:13px}
+.actions button:hover{background:var(--panel);color:var(--text)}
 
-  <!-- Phosphor Icons -->
-  <script src="https://unpkg.com/@phosphor-icons/web" crossorigin="anonymous"></script><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/thin/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/light/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/duotone/style.css">
+#list{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:6px;overscroll-behavior:contain}
+.row{display:flex}
+.row.me{justify-content:flex-end}
+.bubble{max-width:78%;padding:7px 11px;border-radius:16px;background:var(--theirs);word-break:break-word;white-space:pre-wrap}
+.me .bubble{background:var(--mine);color:var(--mine-text)}
+.bubble img{display:block;max-width:100%;max-height:260px;border-radius:10px;cursor:zoom-in;margin:2px 0}
+.meta{font-size:10.5px;opacity:.65;text-align:right;margin-top:2px;white-space:normal}
+.tick.fail{color:#fecaca;opacity:1}
+.note{align-self:center;font-size:12px;color:var(--muted);padding:2px 0}
+#typing{height:20px;padding:0 16px;font-size:12px;color:var(--muted)}
 
-  <!-- MQTT.js & PeerJS for Additional Redundant Relays -->
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" crossorigin="anonymous"></script>
+#composer{display:flex;align-items:flex-end;gap:8px;padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+#composer textarea{flex:1;resize:none;max-height:120px;padding:9px 12px;border:1px solid var(--line);border-radius:18px;background:var(--panel);outline:none;line-height:1.4}
+.icon-btn{width:38px;height:38px;border-radius:50%;border:0;background:var(--panel);color:var(--muted);display:flex;align-items:center;justify-content:center;flex:none;font-size:18px}
+#send{background:var(--mine);color:#fff}
 
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'monospace'],
-          }
-        }
-      }
-    };
-  </script>
+#toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+#toast.show{opacity:1}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20;cursor:zoom-out}
+#lightbox img{max-width:100%;max-height:100%;border-radius:8px}
+</style>
+</head>
+<body>
 
-  <style>
-    /* ==========================================================================
-       BESPOKE LUXURY ROMANTIC CSS & 4 AMBIENT MOOD THEMES
-       ========================================================================== */
-    :root,
-    [data-theme="midnight-rose"] {
-      --bg-primary: #0b040c;
-      --bg-secondary: #180817;
-      --bg-tertiary: #280d24;
-      --orb-1: rgba(244, 63, 94, 0.28);
-      --orb-2: rgba(217, 70, 239, 0.18);
-      --orb-3: rgba(251, 191, 36, 0.14);
-      --glass-bg: rgba(26, 11, 25, 0.66);
-      --glass-bg-strong: rgba(34, 14, 33, 0.90);
-      --glass-border: rgba(251, 113, 133, 0.24);
-      --glass-highlight: rgba(255, 255, 255, 0.08);
-      --text-main: #fff5f7;
-      --text-muted: #e5b8c7;
-      --text-soft: #a67888;
-      --accent-primary: #f43f5e;
-      --accent-secondary: #fb7185;
-      --accent-gold: #fbbf24;
-      --sender-bubble: linear-gradient(135deg, #e11d48 0%, #be185d 55%, #9f1239 100%);
-      --sender-shadow: rgba(225, 29, 72, 0.35);
-      --partner-bubble: rgba(255, 240, 245, 0.09);
-      --partner-border: rgba(251, 113, 133, 0.28);
-      --input-bg: rgba(12, 4, 13, 0.68);
-      --particle-color: 251, 191, 36;
-      --particle-alt: 251, 113, 133;
-    }
-
-    [data-theme="starlit-velvet"] {
-      --bg-primary: #060814;
-      --bg-secondary: #0f152b;
-      --bg-tertiary: #1c2242;
-      --orb-1: rgba(129, 140, 248, 0.26);
-      --orb-2: rgba(192, 132, 252, 0.20);
-      --orb-3: rgba(251, 191, 36, 0.12);
-      --glass-bg: rgba(15, 21, 43, 0.68);
-      --glass-bg-strong: rgba(20, 27, 56, 0.90);
-      --glass-border: rgba(165, 180, 252, 0.24);
-      --glass-highlight: rgba(255, 255, 255, 0.08);
-      --text-main: #f5f7ff;
-      --text-muted: #c7d2fe;
-      --text-soft: #818cf8;
-      --accent-primary: #818cf8;
-      --accent-secondary: #c084fc;
-      --accent-gold: #fde68a;
-      --sender-bubble: linear-gradient(135deg, #6366f1 0%, #7e22ce 60%, #4338ca 100%);
-      --sender-shadow: rgba(99, 102, 241, 0.35);
-      --partner-bubble: rgba(238, 242, 255, 0.09);
-      --partner-border: rgba(165, 180, 252, 0.26);
-      --input-bg: rgba(6, 8, 20, 0.68);
-      --particle-color: 253, 230, 138;
-      --particle-alt: 165, 180, 252;
-    }
-
-    [data-theme="golden-hour"] {
-      --bg-primary: #140a07;
-      --bg-secondary: #26120c;
-      --bg-tertiary: #3b1c12;
-      --orb-1: rgba(249, 115, 22, 0.26);
-      --orb-2: rgba(244, 63, 94, 0.22);
-      --orb-3: rgba(251, 191, 36, 0.22);
-      --glass-bg: rgba(36, 17, 12, 0.68);
-      --glass-bg-strong: rgba(46, 22, 16, 0.90);
-      --glass-border: rgba(251, 146, 60, 0.26);
-      --glass-highlight: rgba(255, 255, 255, 0.08);
-      --text-main: #fffaf5;
-      --text-muted: #fed7aa;
-      --text-soft: #fb923c;
-      --accent-primary: #f97316;
-      --accent-secondary: #fb7185;
-      --accent-gold: #fcd34d;
-      --sender-bubble: linear-gradient(135deg, #ea580c 0%, #e11d48 65%, #b45309 100%);
-      --sender-shadow: rgba(234, 88, 12, 0.35);
-      --partner-bubble: rgba(255, 247, 237, 0.09);
-      --partner-border: rgba(251, 146, 60, 0.28);
-      --input-bg: rgba(18, 8, 5, 0.68);
-      --particle-color: 252, 211, 77;
-      --particle-alt: 251, 146, 60;
-    }
-
-    [data-theme="parisian-blush"] {
-      --bg-primary: #fff8fa;
-      --bg-secondary: #fdeef3;
-      --bg-tertiary: #fbdce6;
-      --orb-1: rgba(244, 63, 94, 0.16);
-      --orb-2: rgba(251, 191, 36, 0.15);
-      --orb-3: rgba(236, 72, 153, 0.14);
-      --glass-bg: rgba(255, 255, 255, 0.80);
-      --glass-bg-strong: rgba(255, 255, 255, 0.95);
-      --glass-border: rgba(244, 63, 94, 0.24);
-      --glass-highlight: rgba(255, 255, 255, 0.9);
-      --text-main: #3b0a1e;
-      --text-muted: #7a2846;
-      --text-soft: #b05c79;
-      --accent-primary: #e11d48;
-      --accent-secondary: #f43f5e;
-      --accent-gold: #d97706;
-      --sender-bubble: linear-gradient(135deg, #e11d48 0%, #db2777 65%, #be123c 100%);
-      --sender-shadow: rgba(225, 29, 72, 0.25);
-      --partner-bubble: rgba(255, 240, 245, 0.94);
-      --partner-border: rgba(244, 63, 94, 0.26);
-      --input-bg: rgba(255, 250, 252, 0.92);
-      --particle-color: 225, 29, 72;
-      --particle-alt: 217, 119, 6;
-    }
-
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    html, body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      background-color: var(--bg-primary);
-      color: var(--text-main);
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      overflow: hidden;
-      transition: background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1), color 0.4s ease;
-    }
-
-    .ambient-stage {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      background:
-        radial-gradient(circle at 15% 15%, var(--orb-1) 0%, transparent 48%),
-        radial-gradient(circle at 85% 25%, var(--orb-2) 0%, transparent 45%),
-        radial-gradient(circle at 50% 88%, var(--orb-3) 0%, transparent 50%),
-        linear-gradient(160deg, var(--bg-primary) 0%, var(--bg-secondary) 55%, var(--bg-tertiary) 100%);
-      transition: background 0.7s ease;
-    }
-
-    .aurora-orb {
-      position: absolute;
-      border-radius: 9999px;
-      filter: blur(72px);
-      pointer-events: none;
-      opacity: 0.75;
-      animation: floatOrb 18s ease-in-out infinite alternate;
-    }
-
-    .aurora-orb-1 {
-      width: 340px;
-      height: 340px;
-      top: -60px;
-      left: -60px;
-      background: var(--orb-1);
-    }
-
-    .aurora-orb-2 {
-      width: 380px;
-      height: 380px;
-      bottom: -80px;
-      right: -60px;
-      background: var(--orb-2);
-      animation-delay: -7s;
-    }
-
-    @keyframes floatOrb {
-      0% { transform: translate(0, 0) scale(1); }
-      50% { transform: translate(28px, -22px) scale(1.08); }
-      100% { transform: translate(-18px, 24px) scale(0.95); }
-    }
-
-    .luxury-glass {
-      background: var(--glass-bg);
-      backdrop-filter: blur(26px) saturate(165%);
-      -webkit-backdrop-filter: blur(26px) saturate(165%);
-      border: 1px solid var(--glass-border);
-      box-shadow:
-        0 24px 60px -15px rgba(0, 0, 0, 0.45),
-        inset 0 1px 0 0 var(--glass-highlight);
-      transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
-    }
-
-    .luxury-glass-strong {
-      background: var(--glass-bg-strong);
-      backdrop-filter: blur(32px) saturate(180%);
-      -webkit-backdrop-filter: blur(32px) saturate(180%);
-      border: 1px solid var(--glass-border);
-      box-shadow:
-        0 28px 70px -12px rgba(0, 0, 0, 0.55),
-        inset 0 1px 0 0 var(--glass-highlight);
-    }
-
-    .luxury-input {
-      background: var(--input-bg);
-      border: 1px solid var(--glass-border);
-      color: var(--text-main);
-      transition: all 0.25s ease;
-    }
-
-    .luxury-input::placeholder {
-      color: var(--text-soft);
-      opacity: 0.75;
-    }
-
-    .luxury-input:focus {
-      outline: none;
-      border-color: var(--accent-secondary);
-      box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.18), 0 8px 25px -5px rgba(244, 63, 94, 0.15);
-    }
-
-    .btn-luxury-primary {
-      background: var(--sender-bubble);
-      color: #ffffff;
-      box-shadow: 0 12px 28px -6px var(--sender-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.28);
-      position: relative;
-      overflow: hidden;
-      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
-    }
-
-    .btn-luxury-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 16px 34px -6px var(--sender-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    }
-
-    .btn-luxury-primary:active {
-      transform: translateY(0) scale(0.985);
-    }
-
-    .btn-luxury-primary::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -120%;
-      width: 65%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.24), transparent);
-      transform: skewX(-22deg);
-      animation: luxuryShimmer 5.5s infinite;
-    }
-
-    @keyframes luxuryShimmer {
-      0%, 65% { left: -120%; }
-      100% { left: 160%; }
-    }
-
-    .bubble-mine {
-      background: var(--sender-bubble);
-      color: #ffffff;
-      box-shadow: 0 10px 26px -6px var(--sender-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.22);
-      border-radius: 1.35rem 1.35rem 0.3rem 1.35rem;
-    }
-
-    .bubble-partner {
-      background: var(--partner-bubble);
-      color: var(--text-main);
-      border: 1px solid var(--partner-border);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.22);
-      border-radius: 1.35rem 1.35rem 1.35rem 0.3rem;
-    }
-
-    .polaroid-frame {
-      background: rgba(255, 255, 255, 0.95);
-      padding: 8px 8px 22px 8px;
-      border-radius: 14px;
-      box-shadow: 0 14px 30px -8px rgba(0, 0, 0, 0.45);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .polaroid-frame:hover {
-      transform: scale(1.015) rotate(-0.5deg);
-    }
-
-    .emblem-ring {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .emblem-ring::before {
-      content: '';
-      position: absolute;
-      inset: -6px;
-      border-radius: 9999px;
-      background: conic-gradient(from 0deg, var(--accent-primary), var(--accent-gold), var(--accent-secondary), var(--accent-primary));
-      opacity: 0.45;
-      filter: blur(8px);
-      animation: spinSlow 9s linear infinite;
-    }
-
-    @keyframes spinSlow {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes heartBeat {
-      0%, 100% { transform: scale(1); }
-      18% { transform: scale(1.22); }
-      34% { transform: scale(0.95); }
-      50% { transform: scale(1.14); }
-    }
-
-    .animate-heartbeat {
-      animation: heartBeat 2.1s infinite ease-in-out;
-    }
-
-    @keyframes screenRomanticPulse {
-      0% { box-shadow: inset 0 0 0 0 rgba(244, 63, 94, 0); }
-      40% { box-shadow: inset 0 0 90px 18px rgba(244, 63, 94, 0.38); }
-      100% { box-shadow: inset 0 0 0 0 rgba(244, 63, 94, 0); }
-    }
-
-    .pulse-screen-effect {
-      animation: screenRomanticPulse 1.3s ease-out;
-    }
-
-    @keyframes msgPopIn {
-      from { opacity: 0; transform: translateY(10px) scale(0.97); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    .msg-enter {
-      animation: msgPopIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes floatUpRomantic {
-      0% {
-        opacity: 0;
-        transform: translateY(15px) scale(0.5) rotate(0deg);
-      }
-      18% {
-        opacity: 1;
-        transform: translateY(-20px) scale(1.15) rotate(-8deg);
-      }
-      75% {
-        opacity: 0.9;
-        transform: translateY(-190px) scale(1) rotate(10deg);
-      }
-      100% {
-        opacity: 0;
-        transform: translateY(-290px) scale(0.75) rotate(-6deg);
-      }
-    }
-
-    .floating-nudge-particle {
-      position: fixed;
-      pointer-events: none;
-      z-index: 90;
-      animation: floatUpRomantic 2.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 5px;
-      height: 5px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(251, 113, 133, 0.25);
-      border-radius: 9999px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(251, 113, 133, 0.45);
-    }
-
-    .theme-swatch {
-      width: 22px;
-      height: 22px;
-      border-radius: 9999px;
-      cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      border: 2px solid rgba(255, 255, 255, 0.35);
-    }
-    .theme-swatch:hover {
-      transform: scale(1.14);
-    }
-    .theme-swatch.active {
-      transform: scale(1.18);
-      border-color: #ffffff;
-      box-shadow: 0 0 0 2px var(--accent-primary);
-    }
-  </style>
-<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:"JetBrains Mono", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.pointer-events-none{pointer-events:none}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.inset-0{inset:0px}.-bottom-0\.5{bottom:-0.125rem}.-right-0\.5{right:-0.125rem}.bottom-2\.5{bottom:0.625rem}.left-1\/2{left:50%}.left-3\.5{left:0.875rem}.right-2{right:0.5rem}.right-3{right:0.75rem}.top-1\/2{top:50%}.top-16{top:4rem}.z-10{z-index:10}.z-50{z-index:50}.z-\[100\]{z-index:100}.z-\[80\]{z-index:80}.z-\[90\]{z-index:90}.z-\[95\]{z-index:95}.mx-auto{margin-left:auto;margin-right:auto}.my-1{margin-top:0.25rem;margin-bottom:0.25rem}.my-2{margin-top:0.5rem;margin-bottom:0.5rem}.my-auto{margin-top:auto;margin-bottom:auto}.mb-1{margin-bottom:0.25rem}.mb-1\.5{margin-bottom:0.375rem}.mb-4{margin-bottom:1rem}.ml-auto{margin-left:auto}.mt-2{margin-top:0.5rem}.mt-3{margin-top:0.75rem}.mt-4{margin-top:1rem}.block{display:block}.flex{display:flex}.inline-flex{display:inline-flex}.grid{display:grid}.hidden{display:none}.h-1\.5{height:0.375rem}.h-10{height:2.5rem}.h-11{height:2.75rem}.h-14{height:3.5rem}.h-16{height:4rem}.h-3{height:0.75rem}.h-8{height:2rem}.h-9{height:2.25rem}.h-full{height:100%}.max-h-32{max-height:8rem}.max-h-\[88vh\]{max-height:88vh}.min-h-0{min-height:0px}.w-1\.5{width:0.375rem}.w-10{width:2.5rem}.w-14{width:3.5rem}.w-16{width:4rem}.w-3{width:0.75rem}.w-8{width:2rem}.w-9{width:2.25rem}.w-full{width:100%}.min-w-0{min-width:0px}.max-w-2xl{max-width:42rem}.max-w-4xl{max-width:56rem}.max-w-full{max-width:100%}.max-w-md{max-width:28rem}.max-w-sm{max-width:24rem}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.-translate-x-1\/2{--tw-translate-x:-50%;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.-translate-y-1\/2{--tw-translate-y:-50%;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.-translate-y-2{--tw-translate-y:-0.5rem;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.animate-\[msgPopIn_0\.25s_ease-out\]{animation:msgPopIn 0.25s ease-out}@keyframes bounce{0%, 100%{transform:translateY(-25%);animation-timing-function:cubic-bezier(0.8,0,1,1)}50%{transform:none;animation-timing-function:cubic-bezier(0,0,0.2,1)}}.animate-bounce{animation:bounce 1s infinite}.cursor-pointer{cursor:pointer}.cursor-zoom-out{cursor:zoom-out}.select-none{-webkit-user-select:none;user-select:none}.select-text{-webkit-user-select:text;user-select:text}.select-all{-webkit-user-select:all;user-select:all}.resize-none{resize:none}.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-end{align-items:flex-end}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-1{gap:0.25rem}.gap-1\.5{gap:0.375rem}.gap-2{gap:0.5rem}.gap-2\.5{gap:0.625rem}.gap-3{gap:0.75rem}.space-y-1\.5 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.375rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.375rem * var(--tw-space-y-reverse))}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-2\.5 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.625rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.625rem * var(--tw-space-y-reverse))}.space-y-3 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.75rem * var(--tw-space-y-reverse))}.space-y-3\.5 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.875rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.875rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.space-y-5 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.25rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.25rem * var(--tw-space-y-reverse))}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.whitespace-pre-line{white-space:pre-line}.rounded{border-radius:0.25rem}.rounded-2xl{border-radius:1rem}.rounded-3xl{border-radius:1.5rem}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:0.5rem}.rounded-xl{border-radius:0.75rem}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-l-2{border-left-width:2px}.border-t{border-top-width:1px}.border-emerald-500\/30{border-color:rgb(16 185 129 / 0.3)}.border-rose-400{--tw-border-opacity:1;border-color:rgb(251 113 133 / var(--tw-border-opacity, 1))}.border-rose-400\/30{border-color:rgb(251 113 133 / 0.3)}.border-rose-500\/30{border-color:rgb(244 63 94 / 0.3)}.border-slate-200{--tw-border-opacity:1;border-color:rgb(226 232 240 / var(--tw-border-opacity, 1))}.bg-\[\#f8fafc\]{--tw-bg-opacity:1;background-color:rgb(248 250 252 / var(--tw-bg-opacity, 1))}.bg-black\/70{background-color:rgb(0 0 0 / 0.7)}.bg-black\/90{background-color:rgb(0 0 0 / 0.9)}.bg-emerald-400{--tw-bg-opacity:1;background-color:rgb(52 211 153 / var(--tw-bg-opacity, 1))}.bg-emerald-50{--tw-bg-opacity:1;background-color:rgb(236 253 245 / var(--tw-bg-opacity, 1))}.bg-emerald-500\/15{background-color:rgb(16 185 129 / 0.15)}.bg-emerald-600{--tw-bg-opacity:1;background-color:rgb(5 150 105 / var(--tw-bg-opacity, 1))}.bg-rose-400{--tw-bg-opacity:1;background-color:rgb(251 113 133 / var(--tw-bg-opacity, 1))}.bg-rose-500\/15{background-color:rgb(244 63 94 / 0.15)}.bg-rose-500\/20{background-color:rgb(244 63 94 / 0.2)}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-gradient-to-br{background-image:linear-gradient(to bottom right, var(--tw-gradient-stops))}.from-rose-500{--tw-gradient-from:#f43f5e var(--tw-gradient-from-position);--tw-gradient-to:rgb(244 63 94 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.via-pink-600{--tw-gradient-to:rgb(219 39 119 / 0)  var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), #db2777 var(--tw-gradient-via-position), var(--tw-gradient-to)}.to-amber-500{--tw-gradient-to:#f59e0b var(--tw-gradient-to-position)}.object-contain{object-fit:contain}.p-1{padding:0.25rem}.p-1\.5{padding:0.375rem}.p-2{padding:0.5rem}.p-2\.5{padding:0.625rem}.p-3{padding:0.75rem}.p-3\.5{padding:0.875rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.p-7{padding:1.75rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.px-2\.5{padding-left:0.625rem;padding-right:0.625rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-3\.5{padding-left:0.875rem;padding-right:0.875rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.py-0\.5{padding-top:0.125rem;padding-bottom:0.125rem}.py-1{padding-top:0.25rem;padding-bottom:0.25rem}.py-1\.5{padding-top:0.375rem;padding-bottom:0.375rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-2\.5{padding-top:0.625rem;padding-bottom:0.625rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-3\.5{padding-top:0.875rem;padding-bottom:0.875rem}.pb-1{padding-bottom:0.25rem}.pb-2{padding-bottom:0.5rem}.pl-10{padding-left:2.5rem}.pl-2\.5{padding-left:0.625rem}.pl-4{padding-left:1rem}.pr-10{padding-right:2.5rem}.pr-24{padding-right:6rem}.pr-4{padding-right:1rem}.pt-1{padding-top:0.25rem}.pt-2{padding-top:0.5rem}.pt-3{padding-top:0.75rem}.text-left{text-align:left}.text-center{text-align:center}.font-mono{font-family:"JetBrains Mono", monospace}.font-sans{font-family:"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif}.font-serif{font-family:"Cormorant Garamond", Georgia, serif}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-\[10px\]{font-size:10px}.text-\[11px\]{font-size:11px}.text-base{font-size:1rem;line-height:1.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-relaxed{line-height:1.625}.tracking-tight{letter-spacing:-0.025em}.tracking-wide{letter-spacing:0.025em}.tracking-wider{letter-spacing:0.05em}.text-amber-300{--tw-text-opacity:1;color:rgb(252 211 77 / var(--tw-text-opacity, 1))}.text-emerald-300{--tw-text-opacity:1;color:rgb(110 231 183 / var(--tw-text-opacity, 1))}.text-emerald-600{--tw-text-opacity:1;color:rgb(5 150 105 / var(--tw-text-opacity, 1))}.text-emerald-700{--tw-text-opacity:1;color:rgb(4 120 87 / var(--tw-text-opacity, 1))}.text-rose-300{--tw-text-opacity:1;color:rgb(253 164 175 / var(--tw-text-opacity, 1))}.text-rose-400{--tw-text-opacity:1;color:rgb(251 113 133 / var(--tw-text-opacity, 1))}.text-slate-400{--tw-text-opacity:1;color:rgb(148 163 184 / var(--tw-text-opacity, 1))}.text-slate-700{--tw-text-opacity:1;color:rgb(51 65 85 / var(--tw-text-opacity, 1))}.text-slate-800{--tw-text-opacity:1;color:rgb(30 41 59 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.line-through{-webkit-text-decoration-line:line-through;text-decoration-line:line-through}.opacity-0{opacity:0}.opacity-80{opacity:0.8}.shadow-2xl{--tw-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25);--tw-shadow-colored:0 25px 50px -12px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-sm{--tw-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-rose-500\/25{--tw-shadow-color:rgb(244 63 94 / 0.25);--tw-shadow:var(--tw-shadow-colored)}.ring-2{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.ring-black\/60{--tw-ring-color:rgb(0 0 0 / 0.6)}.backdrop-blur-lg{--tw-backdrop-blur:blur(16px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.backdrop-blur-md{--tw-backdrop-blur:blur(12px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-colors{transition-property:color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-300{transition-duration:300ms}.hover\:scale-105:hover{--tw-scale-x:1.05;--tw-scale-y:1.05;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.hover\:scale-110:hover{--tw-scale-x:1.1;--tw-scale-y:1.1;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.hover\:bg-rose-500\/35:hover{background-color:rgb(244 63 94 / 0.35)}.hover\:text-slate-700:hover{--tw-text-opacity:1;color:rgb(51 65 85 / var(--tw-text-opacity, 1))}.hover\:underline:hover{-webkit-text-decoration-line:underline;text-decoration-line:underline}.hover\:opacity-80:hover{opacity:0.8}.hover\:opacity-90:hover{opacity:0.9}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}.focus\:ring-2:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-emerald-500:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(16 185 129 / var(--tw-ring-opacity, 1))}.active\:scale-95:active{--tw-scale-x:.95;--tw-scale-y:.95;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}@media (min-width: 640px){.sm\:inline{display:inline}.sm\:inline-flex{display:inline-flex}.sm\:select-auto{-webkit-user-select:auto;user-select:auto}.sm\:gap-2{gap:0.5rem}.sm\:p-3\.5{padding:0.875rem}.sm\:p-5{padding:1.25rem}.sm\:p-7{padding:1.75rem}.sm\:px-3{padding-left:0.75rem;padding-right:0.75rem}.sm\:px-4{padding-left:1rem;padding-right:1rem}.sm\:px-5{padding-left:1.25rem;padding-right:1.25rem}.sm\:px-6{padding-left:1.5rem;padding-right:1.5rem}.sm\:pb-4{padding-bottom:1rem}.sm\:text-3xl{font-size:1.875rem;line-height:2.25rem}.sm\:text-4xl{font-size:2.25rem;line-height:2.5rem}.sm\:text-base{font-size:1rem;line-height:1.5rem}.sm\:text-sm{font-size:0.875rem;line-height:1.25rem}.sm\:text-xl{font-size:1.25rem;line-height:1.75rem}.sm\:text-xs{font-size:0.75rem;line-height:1rem}}@media (min-width: 768px){.md\:flex{display:flex}.md\:hidden{display:none}}@media (min-width: 1024px){.lg\:inline{display:inline}}</style></head>
-
-<body class="select-none sm:select-auto">
-
-  <!-- ========================================================================
-       1. AMBIENT BACKGROUND STAGE & BOKEH PARTICLE CANVAS
-       ======================================================================== -->
-  <div class="ambient-stage">
-    <div class="aurora-orb aurora-orb-1"></div>
-    <div class="aurora-orb aurora-orb-2"></div>
-    <canvas id="bokeh-canvas" class="w-full h-full block opacity-80" width="948" height="828"></canvas>
-  </div>
-
-  <!-- Floating Emoji / Nudge Overlay Layer -->
-  <div id="floating-fx-layer" class="fixed inset-0 pointer-events-none z-50 overflow-hidden"></div>
-
-  <!-- Toast Notification Pill -->
-  <div id="toast-container" class="fixed top-16 left-1/2 -translate-x-1/2 z-[100] pointer-events-none transition-all duration-300 opacity-0 -translate-y-2">
-    <div class="luxury-glass-strong px-4 py-2.5 rounded-full flex items-center gap-2.5 text-xs sm:text-sm font-medium shadow-2xl border border-rose-400/30">
-      <i id="toast-icon" class="ph-fill ph-sparkle text-amber-300 text-base"></i>
-      <span id="toast-text" style="color: var(--text-main);">Copied to clipboard</span>
+<!-- Join -->
+<div id="join">
+  <form id="join-form" autocomplete="off">
+    <div>
+      <h1>Chat</h1>
+      <p>Private, end-to-end encrypted. Share the room code with one person.</p>
     </div>
-  </div>
-
-  <!-- ========================================================================
-       2. PRIVACY / DISGUISE OVERLAY ("WEEKLY PLANNER")
-       ======================================================================== -->
-  <div id="disguise-overlay" class="hidden fixed inset-0 z-[95] bg-[#f8fafc] text-slate-800 flex flex-col font-sans select-text">
-    <header id="disguise-header" class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex items-center justify-between shadow-sm cursor-pointer" title="Double-click or tap Restore View to return">
-      <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
-          <i class="ph-bold ph-check-square-offset text-lg"></i>
-        </div>
-        <div>
-          <h1 class="font-semibold text-sm text-slate-800">Personal Workspace — Weekly Planner</h1>
-          <p class="text-[11px] text-slate-400">Synced just now • Local Notebook</p>
-        </div>
-      </div>
-      <button id="exit-disguise-btn" type="button" class="text-xs text-slate-400 hover:text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 transition">
-        <i class="ph ph-lock-key-open"></i> Restore View
-      </button>
-    </header>
-    <div class="max-w-2xl w-full mx-auto p-6 space-y-5 flex-1 overflow-y-auto">
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Priority Errands &amp; Shopping</h2>
-          <span class="text-[11px] bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full font-medium">4 of 6 completed</span>
-        </div>
-        <div class="space-y-2.5 text-sm text-slate-700">
-          <label class="flex items-center gap-3"><input type="checkbox" checked="" class="rounded text-emerald-600"> <span class="line-through text-slate-400">Order espresso beans &amp; oat milk</span></label>
-          <label class="flex items-center gap-3"><input type="checkbox" checked="" class="rounded text-emerald-600"> <span class="line-through text-slate-400">Pick up dry cleaning before 6 PM</span></label>
-          <label class="flex items-center gap-3"><input type="checkbox" checked="" class="rounded text-emerald-600"> <span class="line-through text-slate-400">Send electricity &amp; internet receipt</span></label>
-          <label class="flex items-center gap-3"><input type="checkbox" class="rounded text-emerald-600"> <span>Review weekend travel itinerary</span></label>
-          <label class="flex items-center gap-3"><input type="checkbox" class="rounded text-emerald-600"> <span>Organize desktop photos folder</span></label>
-        </div>
-      </div>
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Scratchpad Notes</h2>
-        <textarea rows="5" class="w-full text-sm text-slate-700 border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Jot down quick thoughts...">Remember to book table for Friday evening around 8:00 PM.</textarea>
-      </div>
+    <div>
+      <label for="name">Your name</label>
+      <input id="name" type="text" maxlength="24" required>
     </div>
-  </div>
-
-  <!-- ========================================================================
-       3. MAIN APPLICATION SHELL
-       ======================================================================== -->
-  <div id="app-shell" class="relative z-10 h-full w-full flex flex-col max-w-4xl mx-auto">
-
-    <!-- TOP NAVIGATION BAR -->
-    <header class="px-3 sm:px-6 pt-3 pb-2 shrink-0">
-      <div class="luxury-glass rounded-2xl px-3.5 sm:px-5 py-2.5 flex items-center justify-between gap-2">
-        <!-- Brand & Live Cloud Connection State -->
-        <div class="flex items-center gap-3 min-w-0">
-          <div class="relative shrink-0">
-            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-500 via-pink-600 to-amber-500 flex items-center justify-center shadow-lg shadow-rose-500/25">
-              <i class="ph-fill ph-heart text-white text-lg animate-heartbeat"></i>
-            </div>
-            <span id="status-dot" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-black/60 transition-colors"></span>
-          </div>
-
-          <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <h1 class="font-serif font-semibold text-lg sm:text-xl tracking-wide truncate" style="color: var(--text-main);">
-                Us, Uninterrupted
-              </h1>
-              <span id="session-timer-badge" class="hidden font-mono text-[11px] px-2 py-0.5 rounded-full border" style="border-color: var(--glass-border); color: var(--accent-gold); background: rgba(0,0,0,0.2);">
-                00:00
-              </span>
-            </div>
-            <p id="connection-subtitle" class="text-[11px] sm:text-xs truncate" style="color: var(--text-muted);">
-              A private space made just for the two of us ✨
-            </p>
-          </div>
-        </div>
-
-        <!-- Right Controls: Theme Switcher, Invite, Disguise, Clean Vercel Download, Leave -->
-        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <!-- Ambient Theme Switcher Pill -->
-          <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border" style="border-color: var(--glass-border); background: rgba(0,0,0,0.18);" title="Switch Ambient Mood">
-            <button type="button" data-set-theme="midnight-rose" class="theme-swatch active" style="background: linear-gradient(135deg, #0d060f, #f43f5e);" title="Midnight Rose"></button>
-            <button type="button" data-set-theme="starlit-velvet" class="theme-swatch" style="background: linear-gradient(135deg, #070913, #818cf8);" title="Starlit Velvet"></button>
-            <button type="button" data-set-theme="golden-hour" class="theme-swatch" style="background: linear-gradient(135deg, #1a0f0a, #f59e0b);" title="Golden Hour"></button>
-            <button type="button" data-set-theme="parisian-blush" class="theme-swatch" style="background: linear-gradient(135deg, #fff5f8, #f43f5e);" title="Parisian Blush (Day)"></button>
-          </div>
-
-          <!-- Mobile Theme Cycle Button -->
-          <button id="mobile-theme-btn" type="button" class="md:hidden p-2 rounded-xl border transition hover:scale-105" style="border-color: var(--glass-border); color: var(--text-muted);" title="Change Mood Theme">
-            <i class="ph-fill ph-palette text-base"></i>
-          </button>
-
-          <!-- Share / Invite Button (Visible inside Chat) -->
-          <button id="header-invite-btn" type="button" class="hidden px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium border transition flex items-center gap-1.5 hover:opacity-90" style="border-color: var(--glass-border); color: var(--accent-gold); background: rgba(251, 191, 36, 0.1);">
-            <i class="ph-bold ph-share-network text-sm"></i>
-            <span class="hidden sm:inline">Invite Link</span>
-          </button>
-
-          <!-- Disguise / Quick Privacy Button -->
-          <button id="disguise-btn" type="button" class="px-2.5 py-1.5 rounded-xl text-xs font-medium border transition flex items-center gap-1 hover:opacity-90" style="border-color: var(--glass-border); color: var(--text-muted);" title="Quick Privacy Disguise (Esc)">
-            <i class="ph ph-eye-slash text-sm"></i>
-            <span class="hidden sm:inline">Privacy</span>
-          </button>
-
-          <!-- Clean Download index.html for Vercel Button -->
-          <button id="download-app-btn" type="button" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1 hover:opacity-90" style="border-color: var(--glass-border); color: var(--accent-gold); background: rgba(251, 191, 36, 0.1);" title="Download Clean index.html for Vercel (Cross-Device Ready)">
-            <i class="ph-bold ph-download-simple text-sm"></i>
-            <span class="hidden lg:inline">Vercel File</span>
-          </button>
-
-          <!-- End & Wipe Button (Visible inside Chat) -->
-          <button id="leave-room-btn" type="button" class="hidden px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/30 transition flex items-center gap-1">
-            <i class="ph-bold ph-fire text-sm"></i>
-            <span class="hidden sm:inline">End &amp; Wipe</span>
-          </button>
-        </div>
+    <div>
+      <div class="row-between">
+        <label for="room" style="margin:0">Room code</label>
+        <button type="button" id="gen" class="link">Generate</button>
       </div>
-    </header>
-
-    <!-- ======================================================================
-         VIEW 1: BESPOKE ROMANTIC WELCOME & SANCTUARY ENTRY
-         ====================================================================== -->
-    <main id="welcome-view" class="flex-1 overflow-y-auto custom-scrollbar px-3 sm:px-6 py-3 flex flex-col items-center justify-center">
-      <div class="max-w-md w-full my-auto space-y-4">
-
-        <!-- Poetic Hero Card -->
-        <div class="luxury-glass rounded-3xl p-6 sm:p-7 text-center relative overflow-hidden">
-          <!-- Subtle Top Pill Badge -->
-          <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-medium tracking-wider uppercase mb-4 border" style="border-color: var(--glass-border); color: var(--accent-gold); background: rgba(251, 191, 36, 0.08);">
-            <i class="ph-fill ph-sparkle"></i>
-            <span>Crafted with love, just for you</span>
-          </div>
-
-          <!-- Glowing Animated Heart Emblem -->
-          <div class="my-1 flex justify-center">
-            <div class="emblem-ring w-16 h-16 rounded-full flex items-center justify-center luxury-glass">
-              <i class="ph-fill ph-heart text-3xl text-rose-400 animate-heartbeat"></i>
-            </div>
-          </div>
-
-          <!-- Editorial Serif Title & Subtitle -->
-          <h2 id="hero-title-display" class="font-serif text-3xl sm:text-4xl font-semibold tracking-tight mt-3" style="color: var(--text-main);">
-            Our Private Sanctuary ✨
-          </h2>
-          <p id="hero-note-display" class="text-xs sm:text-sm mt-2 leading-relaxed max-w-sm mx-auto" style="color: var(--text-muted);">
-            A quiet little world I made just for the two of us—where we can talk, laugh, and linger for as long as we like.
-          </p>
-
-          <!-- Optional Custom Welcome Note Drawer Toggle -->
-          <div class="mt-4 pt-3 border-t flex items-center justify-between text-[11px]" style="border-color: var(--glass-border);">
-            <span style="color: var(--text-soft);">Personalize her welcome screen</span>
-            <button id="toggle-note-editor-btn" type="button" class="font-semibold flex items-center gap-1 hover:underline" style="color: var(--accent-secondary);">
-              <i class="ph ph-pencil-simple"></i> Customize Note
-            </button>
-          </div>
-
-          <!-- Expandable Personal Welcome Note Editor -->
-          <div id="custom-note-drawer" class="hidden mt-3 pt-3 border-t space-y-2.5 text-left" style="border-color: var(--glass-border);">
-            <div>
-              <label class="block text-[10px] uppercase tracking-wider font-semibold mb-1" style="color: var(--text-muted);">Custom Heading</label>
-              <input id="custom-title-input" type="text" maxlength="60" class="luxury-input w-full px-3 py-2 rounded-xl text-xs" placeholder="e.g., For My Favorite Person ✨">
-            </div>
-            <div>
-              <label class="block text-[10px] uppercase tracking-wider font-semibold mb-1" style="color: var(--text-muted);">Personal Note (Embedded in your link)</label>
-              <textarea id="custom-note-input" rows="2" maxlength="240" class="luxury-input w-full px-3 py-2 rounded-xl text-xs resize-none" placeholder="Write a sweet message she will see when she opens your link..."></textarea>
-            </div>
-          </div>
-        </div>
-
-        <!-- Room Entry & Invitation Card -->
-        <div class="luxury-glass rounded-3xl p-6 sm:p-7 space-y-4">
-          <form id="join-room-form" class="space-y-4">
-            <!-- Nickname Input -->
-            <div>
-              <label for="nickname-input" class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color: var(--text-muted);">
-                Your Pet Name / Name
-              </label>
-              <div class="relative">
-                <i class="ph-fill ph-user-heart absolute left-3.5 top-1/2 -translate-y-1/2 text-base" style="color: var(--accent-secondary);"></i>
-                <input id="nickname-input" type="text" required="" maxlength="24" placeholder="e.g., Yours Forever" class="luxury-input w-full pl-10 pr-4 py-3 rounded-2xl text-sm font-medium">
-              </div>
-            </div>
-
-            <!-- Secret Room Passcode Input -->
-            <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <label for="room-code-input" class="block text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted);">
-                  Our Secret Room Code
-                </label>
-                <button id="random-code-btn" type="button" class="text-[11px] font-medium flex items-center gap-1 hover:underline" style="color: var(--accent-gold);">
-                  <i class="ph-bold ph-magic-wand"></i> New Romantic Code
-                </button>
-              </div>
-              <div class="relative flex items-center">
-                <i class="ph-fill ph-key absolute left-3.5 top-1/2 -translate-y-1/2 text-base" style="color: var(--accent-gold);"></i>
-                <input id="room-code-input" type="text" required="" maxlength="32" placeholder="US-FOREVER" class="luxury-input w-full pl-10 pr-24 py-3 rounded-2xl text-sm font-mono font-semibold uppercase tracking-wider">
-                <button id="quick-copy-code-btn" type="button" class="absolute right-2 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition hover:opacity-90 flex items-center gap-1" style="border-color: var(--glass-border); color: var(--text-main); background: rgba(255,255,255,0.06);">
-                  <i class="ph-bold ph-copy"></i> Copy
-                </button>
-              </div>
-            </div>
-
-            <!-- Enter Sanctuary Button -->
-            <button type="submit" class="btn-luxury-primary w-full py-3.5 px-6 rounded-2xl font-semibold text-sm sm:text-base flex items-center justify-center gap-2">
-              <span>Enter Our Private World</span>
-              <i class="ph-bold ph-arrow-right"></i>
-            </button>
-          </form>
-
-          <!-- Share Invite Link & Local 2-Tab Test Actions -->
-          <div class="pt-3 border-t grid grid-cols-2 gap-2.5" style="border-color: var(--glass-border);">
-            <button id="welcome-share-btn" type="button" class="py-2.5 px-3 rounded-2xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition hover:opacity-90" style="border-color: var(--glass-border); color: var(--text-main); background: rgba(255,255,255,0.04);">
-              <i class="ph-fill ph-link-simple text-rose-400 text-sm"></i>
-              <span>Copy Invite Link</span>
-            </button>
-
-            <button id="welcome-test-tab-btn" type="button" class="py-2.5 px-3 rounded-2xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition hover:opacity-90" style="border-color: var(--glass-border); color: var(--accent-gold); background: rgba(251, 191, 36, 0.07);">
-              <i class="ph-fill ph-browsers text-sm"></i>
-              <span>Test in 2nd Tab</span>
-            </button>
-          </div>
-        </div>
-
-      </div>
-    </main>
-
-    <!-- ======================================================================
-         VIEW 2: LIVE LUXURY ROMANTIC CHAT SANCTUARY
-         ====================================================================== -->
-    <main id="chat-view" class="hidden flex-1 flex flex-col min-h-0 px-2 sm:px-6 pb-2 sm:pb-4">
-      <div class="luxury-glass rounded-3xl flex-1 flex flex-col min-h-0 overflow-hidden relative">
-
-        <!-- Live Partner Status Sub-Bar -->
-        <div class="px-4 py-2.5 border-b flex items-center justify-between gap-2 text-xs shrink-0" style="border-color: var(--glass-border); background: rgba(0,0,0,0.14);">
-          <div class="flex items-center gap-2 min-w-0">
-            <span id="room-code-pill" class="font-mono text-[11px] font-semibold px-2.5 py-0.5 rounded-full border truncate" style="border-color: var(--glass-border); color: var(--accent-gold);">
-              #US-FOREVER
-            </span>
-            <span id="partner-presence-text" class="truncate font-medium" style="color: var(--text-muted);">
-              Connecting cloud room...
-            </span>
-          </div>
-
-          <div class="flex items-center gap-1.5 shrink-0">
-            <span id="cloud-sync-pill" class="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-              <i class="ph-fill ph-cloud-check"></i> Cloud Synced
-            </span>
-            <button id="open-love-note-modal-btn" type="button" class="text-[11px] font-medium px-2.5 py-1 rounded-full border flex items-center gap-1 transition hover:opacity-90" style="border-color: var(--glass-border); color: var(--accent-secondary);">
-              <i class="ph-fill ph-envelope-heart"></i>
-              <span class="hidden sm:inline">Note</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Scrollable Message Stream -->
-        <div id="messages-container" class="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-3.5 flex flex-col">
-          <!-- Poetic Sanctuary Welcome Card inside Chat -->
-          <div class="max-w-sm mx-auto my-2 text-center p-4 rounded-2xl border space-y-2" style="border-color: var(--glass-border); background: rgba(255,255,255,0.03);">
-            <div class="inline-flex items-center gap-1.5 text-xs font-serif italic" style="color: var(--accent-gold);">
-              <i class="ph-fill ph-sparkle"></i>
-              <span>Our Private Sanctuary</span>
-            </div>
-            <p class="text-xs leading-relaxed" style="color: var(--text-muted);">
-              Share your invite link with her so she can join from her phone or laptop anywhere. Double-click any message to leave a heart reaction.
-            </p>
-            <div class="pt-1 flex flex-wrap items-center justify-center gap-2">
-              <button id="inline-invite-btn" type="button" class="px-3 py-1.5 rounded-xl text-[11px] font-semibold border flex items-center gap-1 transition hover:opacity-90" style="border-color: var(--glass-border); color: var(--text-main); background: rgba(244, 63, 94, 0.18);">
-                <i class="ph-bold ph-share-network"></i> Copy &amp; View Invite Link
-              </button>
-              <button id="inline-test-partner-btn" type="button" class="px-3 py-1.5 rounded-xl text-[11px] font-semibold border flex items-center gap-1 transition hover:opacity-90" style="border-color: var(--glass-border); color: var(--accent-gold); background: rgba(251, 191, 36, 0.1);">
-                <i class="ph-bold ph-browsers"></i> Open Partner Tab
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Partner Typing Indicator Bar -->
-        <div id="typing-indicator" class="hidden px-5 py-1.5 text-xs flex items-center gap-2 shrink-0" style="color: var(--accent-secondary);">
-          <div class="flex items-center gap-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-bounce"></span>
-            <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-bounce" style="animation-delay: 0.15s"></span>
-            <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-bounce" style="animation-delay: 0.3s"></span>
-          </div>
-          <span id="typing-text" class="italic font-serif text-sm">She is whispering something...</span>
-        </div>
-
-        <!-- Reply Preview Banner -->
-        <div id="reply-preview-bar" class="hidden px-4 py-2 border-t flex items-center justify-between gap-2 text-xs shrink-0" style="border-color: var(--glass-border); background: rgba(0,0,0,0.25);">
-          <div class="border-l-2 border-rose-400 pl-2.5 truncate">
-            <span id="reply-to-sender" class="font-semibold block text-[11px]" style="color: var(--accent-secondary);">Replying to</span>
-            <span id="reply-to-text" class="truncate block text-[11px]" style="color: var(--text-muted);"></span>
-          </div>
-          <button id="cancel-reply-btn" type="button" class="p-1 rounded-lg hover:opacity-80" style="color: var(--text-muted);">
-            <i class="ph-bold ph-x"></i>
-          </button>
-        </div>
-
-        <!-- Romantic Touch Bar (Heartbeat, Hug, Kiss, Sparkles, Ephemeral Photo) -->
-        <div class="px-3 sm:px-4 pt-2 pb-1 border-t flex items-center gap-1.5 overflow-x-auto custom-scrollbar shrink-0" style="border-color: var(--glass-border);">
-          <button type="button" data-nudge="heartbeat" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-medium border flex items-center gap-1 transition hover:scale-105 active:scale-95" style="border-color: var(--glass-border); color: var(--text-main); background: rgba(244, 63, 94, 0.14);">
-            <span>💓</span> <span>Send Heartbeat</span>
-          </button>
-          <button type="button" data-nudge="hug" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-medium border flex items-center gap-1 transition hover:scale-105 active:scale-95" style="border-color: var(--glass-border); color: var(--text-main); background: rgba(251, 191, 36, 0.12);">
-            <span>🤗</span> <span>Warm Hug</span>
-          </button>
-          <button type="button" data-nudge="kiss" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-medium border flex items-center gap-1 transition hover:scale-105 active:scale-95" style="border-color: var(--glass-border); color: var(--text-main); background: rgba(236, 72, 153, 0.14);">
-            <span>😘</span> <span>Flying Kiss</span>
-          </button>
-          <button type="button" data-nudge="sparkle" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-medium border flex items-center gap-1 transition hover:scale-105 active:scale-95" style="border-color: var(--glass-border); color: var(--text-main); background: rgba(168, 85, 247, 0.14);">
-            <span>✨</span> <span>Sparkle Shower</span>
-          </button>
-          <label for="photo-upload-input" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-medium border flex items-center gap-1 cursor-pointer transition hover:scale-105 active:scale-95 ml-auto" style="border-color: var(--glass-border); color: var(--accent-gold); background: rgba(251, 191, 36, 0.1);">
-            <i class="ph-fill ph-camera text-sm"></i>
-            <span>Share Moment</span>
-          </label>
-          <input id="photo-upload-input" type="file" accept="image/*" class="hidden">
-        </div>
-
-        <!-- Message Input Composer -->
-        <form id="message-form" class="p-2.5 sm:p-3.5 flex items-end gap-2 shrink-0">
-          <div class="flex-1 relative">
-            <textarea id="message-input" rows="1" placeholder="Write something sweet..." class="luxury-input w-full pl-4 pr-10 py-3 rounded-2xl text-sm resize-none max-h-32 custom-scrollbar leading-relaxed"></textarea>
-            <button id="quick-heart-insert-btn" type="button" class="absolute right-3 bottom-2.5 text-rose-400 hover:scale-110 transition" title="Insert Heart">
-              <i class="ph-fill ph-heart text-lg"></i>
-            </button>
-          </div>
-
-          <button type="submit" class="btn-luxury-primary h-11 px-5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-1.5 shrink-0">
-            <span class="hidden sm:inline">Send</span>
-            <i class="ph-fill ph-paper-plane-tilt text-base"></i>
-          </button>
-        </form>
-
-      </div>
-    </main>
-  </div>
-
-  <!-- ========================================================================
-       4. SHARE & INVITE FIANCÉE MODAL
-       ======================================================================== -->
-  <div id="invite-modal" class="hidden fixed inset-0 z-[80] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="luxury-glass-strong max-w-md w-full rounded-3xl p-6 space-y-4 border animate-[msgPopIn_0.25s_ease-out]">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
-            <i class="ph-fill ph-heart text-lg"></i>
-          </div>
-          <div>
-            <h3 class="font-serif text-xl font-semibold" style="color: var(--text-main);">Invite Her From Any Device ✨</h3>
-            <p class="text-[11px]" style="color: var(--text-muted);">Works across phones &amp; laptops on 4G/5G or Wi-Fi</p>
-          </div>
-        </div>
-        <button id="close-invite-modal-btn" type="button" class="p-1.5 rounded-xl hover:opacity-80" style="color: var(--text-muted);">
-          <i class="ph-bold ph-x text-lg"></i>
-        </button>
-      </div>
-
-      <!-- Secret Code Box -->
-      <div class="p-3.5 rounded-2xl border flex items-center justify-between" style="border-color: var(--glass-border); background: rgba(0,0,0,0.2);">
-        <div>
-          <span class="text-[10px] uppercase tracking-wider block" style="color: var(--text-soft);">Room Code</span>
-          <span id="modal-room-code-text" class="font-mono text-base font-bold tracking-wider" style="color: var(--accent-gold);">US-FOREVER</span>
-        </div>
-        <button id="modal-copy-code-btn" type="button" class="px-3 py-1.5 rounded-xl text-xs font-semibold border transition hover:opacity-90 flex items-center gap-1" style="border-color: var(--glass-border); color: var(--text-main);">
-          <i class="ph-bold ph-copy"></i> Copy Code
-        </button>
-      </div>
-
-      <!-- Full Pre-filled Magic Link -->
-      <div class="space-y-1.5">
-        <label class="text-[11px] font-medium block" style="color: var(--text-muted);">Direct Magic Link (Pre-fills Room Code &amp; Your Note)</label>
-        <div class="flex items-center gap-2">
-          <input id="modal-invite-link-input" type="text" readonly="" class="luxury-input w-full px-3 py-2.5 rounded-xl text-xs font-mono select-all">
-          <button id="modal-copy-link-btn" type="button" class="btn-luxury-primary px-4 py-2.5 rounded-xl text-xs font-semibold shrink-0 flex items-center gap-1">
-            <i class="ph-bold ph-copy"></i> Copy
-          </button>
-        </div>
-      </div>
-
-      <!-- Instant 2nd Tab Testing Button -->
-      <div class="pt-2 border-t flex flex-col gap-2" style="border-color: var(--glass-border);">
-        <button id="modal-open-partner-tab-btn" type="button" class="w-full py-2.5 px-4 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition hover:opacity-90" style="border-color: var(--glass-border); color: var(--accent-gold); background: rgba(251, 191, 36, 0.1);">
-          <i class="ph-bold ph-browsers text-sm"></i>
-          <span>Open Partner View in New Tab (Test Right Now)</span>
-        </button>
-      </div>
+      <input id="room" type="text" maxlength="48" required spellcheck="false" style="margin-top:4px">
     </div>
-  </div>
+    <div id="join-error"></div>
+    <button class="primary" type="submit">Join</button>
+  </form>
+</div>
 
-  <!-- ========================================================================
-       5. ROMANTIC WELCOME NOTE CARD MODAL
-       ======================================================================== -->
-  <div id="love-note-modal" class="hidden fixed inset-0 z-[80] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="luxury-glass-strong max-w-md w-full rounded-3xl p-7 text-center space-y-4 border animate-[msgPopIn_0.25s_ease-out]">
-      <div class="w-14 h-14 rounded-full bg-rose-500/15 text-rose-400 flex items-center justify-center mx-auto">
-        <i class="ph-fill ph-heart text-3xl animate-heartbeat"></i>
-      </div>
-      <h3 id="modal-note-title" class="font-serif text-2xl sm:text-3xl font-semibold" style="color: var(--text-main);">
-        Our Private Sanctuary ✨
-      </h3>
-      <p id="modal-note-body" class="text-sm leading-relaxed whitespace-pre-line" style="color: var(--text-muted);">
-        A quiet little world I made just for the two of us—where we can talk, laugh, and linger for as long as we like.
-      </p>
-      <div class="pt-3">
-        <button id="close-love-note-modal-btn" type="button" class="btn-luxury-primary px-6 py-2.5 rounded-2xl text-xs font-semibold">
-          Step Inside 💕
-        </button>
-      </div>
+<!-- Chat -->
+<div id="chat" class="hidden">
+  <header>
+    <div class="who">
+      <b id="title">Chat</b>
+      <span class="status"><span id="dot" class="dot"></span><span id="status">Connecting…</span></span>
     </div>
-  </div>
-
-  <!-- ========================================================================
-       6. PHOTO LIGHTBOX MODAL
-       ======================================================================== -->
-  <div id="lightbox-modal" class="hidden fixed inset-0 z-[90] bg-black/90 backdrop-blur-lg flex items-center justify-center p-4 cursor-zoom-out">
-    <img id="lightbox-img" src="" alt="Shared moment" class="max-w-full max-h-[88vh] rounded-2xl shadow-2xl object-contain">
-  </div>
-
-  <!-- ========================================================================
-       7. CLOUD REALTIME + FIREBASE + HTTPS STREAM ENGINE (CROSS-DEVICE READY)
-       ======================================================================== -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, onSnapshot, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    (function () {
-      'use strict';
-
-      const ROMANTIC_CODES = [
-        'US-FOREVER', 'MOONLIGHT-US', 'OUR-SANCTUARY', 'VELVET-SKIES',
-        'ALWAYS-YOURS', 'SOULMATES-26', 'STARLIGHT-TWO', 'SWEET-ESCAPE'
-      ];
-
-      const THEMES = ['midnight-rose', 'starlit-velvet', 'golden-hour', 'parisian-blush'];
-
-      // --- APPLICATION STATE ---
-      const state = {
-        myId: 'peer_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36),
-        nickname: '',
-        roomCode: 'US-FOREVER',
-        customTitle: 'Our Private Sanctuary ✨',
-        customNote: 'A quiet little world I made just for the two of us—where we can talk, laugh, and linger for as long as we like.',
-        inRoom: false,
-        partnerName: null,
-        partnerLastSeen: 0,
-        sessionStartTime: null,
-        timerInterval: null,
-        heartbeatInterval: null,
-        replyingTo: null,
-        seenPacketIds: new Set(),
-        // Multi-Engine Transports for 100% Cross-Device Delivery:
-        // 1. HTTPS Cloud EventStream (ntfy.sh JSON SSE + POST) - Works through ANY firewall & Vercel without keys
-        ntfyEventSource: null,
-        ntfyPollInterval: null,
-        // 2. Firebase Cloud Firestore (When configured)
-        fbDb: null,
-        fbUser: null,
-        fbAppId: 'us-uninterrupted-app',
-        fbUnsubscribe: null,
-        // 3. Redundant WebSocket MQTT + PeerJS + BroadcastChannel
-        mqttClients: [],
-        broadcastChannel: null,
-        peer: null,
-        peerConn: null,
-        typingTimeout: null,
-        lastTypingSent: 0
-      };
-
-      // --- DOM REFERENCES ---
-      const el = {
-        html: document.documentElement,
-        appShell: document.getElementById('app-shell'),
-        bokehCanvas: document.getElementById('bokeh-canvas'),
-        floatingFxLayer: document.getElementById('floating-fx-layer'),
-        toastContainer: document.getElementById('toast-container'),
-        toastText: document.getElementById('toast-text'),
-        toastIcon: document.getElementById('toast-icon'),
-
-        statusDot: document.getElementById('status-dot'),
-        sessionTimerBadge: document.getElementById('session-timer-badge'),
-        connectionSubtitle: document.getElementById('connection-subtitle'),
-        mobileThemeBtn: document.getElementById('mobile-theme-btn'),
-        headerInviteBtn: document.getElementById('header-invite-btn'),
-        disguiseBtn: document.getElementById('disguise-btn'),
-        downloadAppBtn: document.getElementById('download-app-btn'),
-        leaveRoomBtn: document.getElementById('leave-room-btn'),
-
-        welcomeView: document.getElementById('welcome-view'),
-        chatView: document.getElementById('chat-view'),
-
-        heroTitleDisplay: document.getElementById('hero-title-display'),
-        heroNoteDisplay: document.getElementById('hero-note-display'),
-        toggleNoteEditorBtn: document.getElementById('toggle-note-editor-btn'),
-        customNoteDrawer: document.getElementById('custom-note-drawer'),
-        customTitleInput: document.getElementById('custom-title-input'),
-        customNoteInput: document.getElementById('custom-note-input'),
-
-        joinRoomForm: document.getElementById('join-room-form'),
-        nicknameInput: document.getElementById('nickname-input'),
-        roomCodeInput: document.getElementById('room-code-input'),
-        randomCodeBtn: document.getElementById('random-code-btn'),
-        quickCopyCodeBtn: document.getElementById('quick-copy-code-btn'),
-        welcomeShareBtn: document.getElementById('welcome-share-btn'),
-        welcomeTestTabBtn: document.getElementById('welcome-test-tab-btn'),
-
-        roomCodePill: document.getElementById('room-code-pill'),
-        partnerPresenceText: document.getElementById('partner-presence-text'),
-        cloudSyncPill: document.getElementById('cloud-sync-pill'),
-        openLoveNoteModalBtn: document.getElementById('open-love-note-modal-btn'),
-        messagesContainer: document.getElementById('messages-container'),
-        inlineInviteBtn: document.getElementById('inline-invite-btn'),
-        inlineTestPartnerBtn: document.getElementById('inline-test-partner-btn'),
-        typingIndicator: document.getElementById('typing-indicator'),
-        typingText: document.getElementById('typing-text'),
-
-        replyPreviewBar: document.getElementById('reply-preview-bar'),
-        replyToSender: document.getElementById('reply-to-sender'),
-        replyToText: document.getElementById('reply-to-text'),
-        cancelReplyBtn: document.getElementById('cancel-reply-btn'),
-
-        photoUploadInput: document.getElementById('photo-upload-input'),
-        messageForm: document.getElementById('message-form'),
-        messageInput: document.getElementById('message-input'),
-        quickHeartInsertBtn: document.getElementById('quick-heart-insert-btn'),
-
-        inviteModal: document.getElementById('invite-modal'),
-        closeInviteModalBtn: document.getElementById('close-invite-modal-btn'),
-        modalRoomCodeText: document.getElementById('modal-room-code-text'),
-        modalCopyCodeBtn: document.getElementById('modal-copy-code-btn'),
-        modalInviteLinkInput: document.getElementById('modal-invite-link-input'),
-        modalCopyLinkBtn: document.getElementById('modal-copy-link-btn'),
-        modalOpenPartnerTabBtn: document.getElementById('modal-open-partner-tab-btn'),
-
-        loveNoteModal: document.getElementById('love-note-modal'),
-        modalNoteTitle: document.getElementById('modal-note-title'),
-        modalNoteBody: document.getElementById('modal-note-body'),
-        closeLoveNoteModalBtn: document.getElementById('close-love-note-modal-btn'),
-
-        disguiseOverlay: document.getElementById('disguise-overlay'),
-        disguiseHeader: document.getElementById('disguise-header'),
-        exitDisguiseBtn: document.getElementById('exit-disguise-btn'),
-
-        lightboxModal: document.getElementById('lightbox-modal'),
-        lightboxImg: document.getElementById('lightbox-img')
-      };
-
-      // ======================================================================
-      // 0. OPTIONAL FIREBASE CLOUD INITIALIZATION (IF CONFIGURED IN ENV)
-      // ======================================================================
-      async function initFirebaseBackend() {
-        try {
-          if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-            const cfg = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
-            if (cfg && cfg.apiKey) {
-              const app = initializeApp(cfg);
-              const auth = getAuth(app);
-              const db = getFirestore(app);
-              state.fbAppId = typeof __app_id !== 'undefined' ? __app_id : 'us-uninterrupted-app';
-              if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                const cred = await signInWithCustomToken(auth, __initial_auth_token);
-                state.fbUser = cred.user;
-              } else {
-                const cred = await signInAnonymously(auth);
-                state.fbUser = cred.user;
-              }
-              state.fbDb = db;
-            }
-          }
-        } catch (_) {
-          // Falls back seamlessly to HTTPS Cloud Stream (ntfy.sh) + MQTT WSS
-        }
-      }
-
-      // ======================================================================
-      // 1. AMBIENT BOKEH PARTICLE BACKGROUND CANVAS
-      // ======================================================================
-      function initBokehCanvas() {
-        const canvas = el.bokehCanvas;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        let width = (canvas.width = window.innerWidth);
-        let height = (canvas.height = window.innerHeight);
-
-        const particles = Array.from({ length: 32 }, () => ({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          r: Math.random() * 2.6 + 0.8,
-          vx: (Math.random() - 0.5) * 0.22,
-          vy: -Math.random() * 0.32 - 0.08,
-          alpha: Math.random() * 0.55 + 0.15,
-          phase: Math.random() * Math.PI * 2,
-          alt: Math.random() > 0.5
-        }));
-
-        window.addEventListener('resize', () => {
-          width = canvas.width = window.innerWidth;
-          height = canvas.height = window.innerHeight;
-        });
-
-        function renderParticles() {
-          ctx.clearRect(0, 0, width, height);
-          const style = getComputedStyle(document.documentElement);
-          const colorMain = style.getPropertyValue('--particle-color').trim() || '251, 191, 36';
-          const colorAlt = style.getPropertyValue('--particle-alt').trim() || '251, 113, 133';
-
-          for (const p of particles) {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.phase += 0.018;
-
-            if (p.y < -10) p.y = height + 10;
-            if (p.x < -10) p.x = width + 10;
-            if (p.x > width + 10) p.x = -10;
-
-            const twinkle = p.alpha * (0.65 + 0.35 * Math.sin(p.phase));
-            const rgb = p.alt ? colorAlt : colorMain;
-
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${rgb}, ${twinkle})`;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = `rgba(${rgb}, 0.5)`;
-            ctx.fill();
-          }
-          requestAnimationFrame(renderParticles);
-        }
-        renderParticles();
-      }
-
-      // ======================================================================
-      // 2. UTILITIES: CLIPBOARD, TOAST, ENCRYPTION, URL BUILDER
-      // ======================================================================
-      function normalizeRoomCode(raw) {
-        return (raw || 'US-FOREVER')
-          .toString()
-          .trim()
-          .toUpperCase()
-          .replace(/\s+/g, '-')
-          .replace(/[^A-Z0-9-_]/g, '') || 'US-FOREVER';
-      }
-
-      // Deterministic topic hash from roomCode so room topics are private on public relays
-      function getRoomHash(roomCode) {
-        const str = 'usuninterrupted_salt_2026_' + normalizeRoomCode(roomCode);
-        let h1 = 0xdeadbeef ^ str.length;
-        let h2 = 0x41c6ce57 ^ str.length;
-        for (let i = 0, ch; i < str.length; i++) {
-          ch = str.charCodeAt(i);
-          h1 = Math.imul(h1 ^ ch, 2654435761);
-          h2 = Math.imul(h2 ^ ch, 1597334677);
-        }
-        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-        return 'us_sanctuary_' + (h2 >>> 0).toString(16) + (h1 >>> 0).toString(16);
-      }
-
-      let toastTimer = null;
-      function showToast(message, iconClass = 'ph-sparkle') {
-        el.toastText.textContent = message;
-        el.toastIcon.className = `ph-fill ${iconClass} text-amber-300 text-base`;
-        el.toastContainer.classList.remove('opacity-0', '-translate-y-2');
-        el.toastContainer.classList.add('opacity-100', 'translate-y-0');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => {
-          el.toastContainer.classList.add('opacity-0', '-translate-y-2');
-          el.toastContainer.classList.remove('opacity-100', 'translate-y-0');
-        }, 2800);
-      }
-
-      async function copyTextReliable(text) {
-        try {
-          const ta = document.createElement('textarea');
-          ta.value = text;
-          ta.style.position = 'fixed';
-          ta.style.left = '-9999px';
-          document.body.appendChild(ta);
-          ta.focus();
-          ta.select();
-          document.execCommand('copy');
-          document.body.removeChild(ta);
-        } catch (_) {}
-        try {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(text);
-          }
-          return true;
-        } catch (_) {
-          return true;
-        }
-      }
-
-      function encodePayload(obj, roomKey) {
-        try {
-          const json = JSON.stringify(obj);
-          const utf8 = encodeURIComponent(json);
-          let out = '';
-          for (let i = 0; i < utf8.length; i++) {
-            out += String.fromCharCode(utf8.charCodeAt(i) ^ roomKey.charCodeAt(i % roomKey.length));
-          }
-          return btoa(out);
-        } catch (_) {
-          return '';
-        }
-      }
-
-      function decodePayload(encoded, roomKey) {
-        try {
-          const raw = atob(encoded);
-          let utf8 = '';
-          for (let i = 0; i < raw.length; i++) {
-            utf8 += String.fromCharCode(raw.charCodeAt(i) ^ roomKey.charCodeAt(i % roomKey.length));
-          }
-          return JSON.parse(decodeURIComponent(utf8));
-        } catch (_) {
-          return null;
-        }
-      }
-
-      function buildInviteUrl() {
-        const code = normalizeRoomCode(el.roomCodeInput.value || state.roomCode);
-        const url = new URL(window.location.href);
-        url.searchParams.set('room', code);
-        url.searchParams.delete('partnerTest');
-
-        const titleVal = el.customTitleInput.value.trim();
-        const noteVal = el.customNoteInput.value.trim();
-        if (titleVal) url.searchParams.set('title', titleVal);
-        else url.searchParams.delete('title');
-
-        if (noteVal) url.searchParams.set('note', noteVal);
-        else url.searchParams.delete('note');
-
-        return url.toString();
-      }
-
-      function openInviteModal() {
-        state.roomCode = normalizeRoomCode(el.roomCodeInput.value || state.roomCode);
-        el.roomCodeInput.value = state.roomCode;
-        const inviteUrl = buildInviteUrl();
-        el.modalRoomCodeText.textContent = state.roomCode;
-        el.modalInviteLinkInput.value = inviteUrl;
-        el.inviteModal.classList.remove('hidden');
-        copyTextReliable(inviteUrl).then(() => {
-          showToast('Invite link copied to clipboard 💕', 'ph-link');
-        });
-      }
-
-      function openPartnerTestTab() {
-        const inviteUrl = new URL(buildInviteUrl());
-        inviteUrl.searchParams.set('partnerTest', '1');
-        window.open(inviteUrl.toString(), '_blank');
-        showToast('Opened Partner View in a new tab ✨', 'ph-browsers');
-      }
-
-      // ======================================================================
-      // 3. FLOATING HEARTS / NUDGE ANIMATIONS
-      // ======================================================================
-      function spawnFloatingParticles(emojis = ['❤️', '✨', '💕'], count = 14) {
-        for (let i = 0; i < count; i++) {
-          setTimeout(() => {
-            const node = document.createElement('div');
-            node.className = 'floating-nudge-particle text-2xl sm:text-3xl select-none';
-            node.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-            node.style.left = `${12 + Math.random() * 76}%`;
-            node.style.bottom = '48px';
-            el.floatingFxLayer.appendChild(node);
-            setTimeout(() => node.remove(), 2900);
-          }, i * 65);
-        }
-      }
-
-      function triggerNudgeVisual(nudgeType, senderName, isSelf) {
-        const map = {
-          heartbeat: {
-            emojis: ['💓', '❤️', '💖'],
-            selfText: 'You sent a gentle heartbeat 💓',
-            partnerText: `${senderName} sent you a heartbeat 💓`
-          },
-          hug: {
-            emojis: ['🤗', '🤍', '✨', '💕'],
-            selfText: 'You wrapped her in a warm hug 🤗',
-            partnerText: `${senderName} wrapped you in a warm hug 🤗`
-          },
-          kiss: {
-            emojis: ['😘', '💋', '❤️', '🌷'],
-            selfText: 'You blew a sweet kiss 😘',
-            partnerText: `${senderName} sent you a flying kiss 😘`
-          },
-          sparkle: {
-            emojis: ['✨', '🌙', '💫', '🥂'],
-            selfText: 'You showered the room with starlight ✨',
-            partnerText: `${senderName} showered your screen with starlight ✨`
-          }
-        };
-
-        const cfg = map[nudgeType] || map.heartbeat;
-        spawnFloatingParticles(cfg.emojis, 16);
-
-        if (nudgeType === 'heartbeat') {
-          el.appShell.classList.remove('pulse-screen-effect');
-          void el.appShell.offsetWidth;
-          el.appShell.classList.add('pulse-screen-effect');
-        }
-
-        appendSystemEventPill(isSelf ? cfg.selfText : cfg.partnerText);
-      }
-
-      // ======================================================================
-      // 4. CHAT RENDERING (MESSAGES, POLAROID PHOTOS, REACTIONS, REPLIES)
-      // ======================================================================
-      function scrollToBottom() {
-        el.messagesContainer.scrollTop = el.messagesContainer.scrollHeight;
-      }
-
-      function appendSystemEventPill(text) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'flex justify-center my-1 msg-enter';
-        wrapper.innerHTML = `
-          <div class="px-3.5 py-1 rounded-full text-[11px] font-medium border flex items-center gap-1.5"
-               style="border-color: var(--glass-border); color: var(--text-muted); background: rgba(0,0,0,0.18);">
-            <i class="ph-fill ph-sparkle text-amber-300"></i>
-            <span></span>
-          </div>
-        `;
-        wrapper.querySelector('span').textContent = text;
-        el.messagesContainer.appendChild(wrapper);
-        scrollToBottom();
-      }
-
-      function renderChatMessage(msg, isMine) {
-        if (!msg || !msg.id) return;
-        if (document.getElementById(`msg-${msg.id}`)) return;
-
-        const row = document.createElement('div');
-        row.id = `msg-${msg.id}`;
-        row.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'} msg-enter group`;
-
-        const bubbleClass = isMine ? 'bubble-mine' : 'bubble-partner';
-
-        let replyHtml = '';
-        if (msg.replyTo && msg.replyTo.text) {
-          replyHtml = `
-            <div class="mb-2 px-2.5 py-1.5 rounded-xl text-[11px] border-l-2 border-amber-300 bg-black/20 opacity-90">
-              <div class="font-semibold text-[10px] opacity-80">${escapeHtml(msg.replyTo.sender || '')}</div>
-              <div class="truncate max-w-[220px]">${escapeHtml(msg.replyTo.text)}</div>
-            </div>
-          `;
-        }
-
-        let photoHtml = '';
-        if (msg.image) {
-          photoHtml = `
-            <div class="polaroid-frame mb-2 cursor-zoom-in">
-              <img src="${msg.image}" alt="Shared moment" class="max-h-60 w-auto rounded-lg object-cover block" />
-              <div class="text-[10px] text-center text-rose-900/70 font-serif italic mt-1.5">Our little moment ✨</div>
-            </div>
-          `;
-        }
-
-        const textHtml = msg.text
-          ? `<p class="text-sm leading-relaxed whitespace-pre-wrap break-words">${escapeHtml(msg.text)}</p>`
-          : '';
-
-        row.innerHTML = `
-          <div class="flex items-end gap-1.5 max-w-[85%] sm:max-w-[74%]">
-            ${!isMine ? `
-              <div class="w-7 h-7 rounded-full bg-rose-500/20 border border-rose-400/30 flex items-center justify-center text-xs font-serif font-bold shrink-0 mb-1" style="color: var(--accent-secondary);">
-                ${escapeHtml((msg.sender || 'P').charAt(0).toUpperCase())}
-              </div>
-            ` : ''}
-
-            <div class="relative">
-              <div class="message-bubble ${bubbleClass} px-4 py-2.5 relative cursor-pointer select-text" title="Double-click to react with ❤️">
-                ${replyHtml}
-                ${photoHtml}
-                ${textHtml}
-                <div class="mt-1 flex items-center justify-end gap-1.5 text-[10px] opacity-70">
-                  <span>${escapeHtml(msg.time || '')}</span>
-                  ${isMine ? '<i class="ph-bold ph-checks text-xs"></i>' : ''}
-                </div>
-              </div>
-
-              <!-- Reaction Badges Bar -->
-              <div id="reactions-${msg.id}" class="flex flex-wrap gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'} empty:hidden"></div>
-
-              <!-- Hover Quick Reaction & Reply Bar -->
-              <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}">
-                <button type="button" data-react="❤️" class="text-xs px-1.5 py-0.5 rounded-full luxury-glass hover:scale-110 transition">❤️</button>
-                <button type="button" data-react="🥰" class="text-xs px-1.5 py-0.5 rounded-full luxury-glass hover:scale-110 transition">🥰</button>
-                <button type="button" data-react="✨" class="text-xs px-1.5 py-0.5 rounded-full luxury-glass hover:scale-110 transition">✨</button>
-                <button type="button" data-react="🥺" class="text-xs px-1.5 py-0.5 rounded-full luxury-glass hover:scale-110 transition">🥺</button>
-                <button type="button" data-reply-btn="1" class="text-[11px] px-2 py-0.5 rounded-full luxury-glass flex items-center gap-1 hover:opacity-90" style="color: var(--text-muted);">
-                  <i class="ph-bold ph-arrow-bend-up-left"></i> Reply
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-
-        if (msg.image) {
-          const imgEl = row.querySelector('img');
-          if (imgEl) {
-            imgEl.addEventListener('click', (e) => {
-              e.stopPropagation();
-              el.lightboxImg.src = msg.image;
-              el.lightboxModal.classList.remove('hidden');
-            });
-          }
-        }
-
-        const bubbleEl = row.querySelector('.message-bubble');
-        bubbleEl.addEventListener('dblclick', () => {
-          sendReaction(msg.id, '❤️');
-        });
-
-        row.querySelectorAll('[data-react]').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            sendReaction(msg.id, btn.getAttribute('data-react'));
-          });
-        });
-
-        const replyBtn = row.querySelector('[data-reply-btn]');
-        if (replyBtn) {
-          replyBtn.addEventListener('click', () => {
-            state.replyingTo = {
-              id: msg.id,
-              sender: msg.sender,
-              text: msg.text || '📷 Shared a photo'
-            };
-            el.replyToSender.textContent = `Replying to ${msg.sender}`;
-            el.replyToText.textContent = state.replyingTo.text;
-            el.replyPreviewBar.classList.remove('hidden');
-            el.messageInput.focus();
-          });
-        }
-
-        el.messagesContainer.appendChild(row);
-        scrollToBottom();
-      }
-
-      function applyMessageReaction(messageId, emoji) {
-        const container = document.getElementById(`reactions-${messageId}`);
-        if (!container) return;
-
-        let pill = container.querySelector(`[data-emoji="${emoji}"]`);
-        if (!pill) {
-          pill = document.createElement('span');
-          pill.setAttribute('data-emoji', emoji);
-          pill.setAttribute('data-count', '1');
-          pill.className = 'px-2 py-0.5 rounded-full text-xs luxury-glass border animate-[msgPopIn_0.2s_ease-out]';
-          pill.textContent = `${emoji} 1`;
-          container.appendChild(pill);
-        } else {
-          const count = parseInt(pill.getAttribute('data-count') || '1', 10) + 1;
-          pill.setAttribute('data-count', String(count));
-          pill.textContent = `${emoji} ${count}`;
-        }
-        spawnFloatingParticles([emoji], 4);
-      }
-
-      function escapeHtml(str) {
-        return String(str)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;');
-      }
-
-      // ======================================================================
-      // 5. QUAD-ENGINE CLOUD REALTIME RELAY (WORKS ACROSS ALL PHONES & LAPTOPS)
-      //    Engine A: HTTPS Cloud Stream (ntfy.sh JSON SSE + POST) - Zero-config, never blocked
-      //    Engine B: Firebase Cloud Firestore (When available)
-      //    Engine C: 3 Encrypted WebSocket MQTT Brokers (EMQX, HiveMQ, Mosquitto)
-      //    Engine D: BroadcastChannel + PeerJS WebRTC
-      // ======================================================================
-      function broadcastPacket(packet) {
-        packet.packetId = packet.packetId || ('pkt_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now());
-        packet.senderId = state.myId;
-        packet.senderName = state.nickname;
-        packet.roomCode = state.roomCode;
-        packet.createdAt = Date.now();
-        state.seenPacketIds.add(packet.packetId);
-
-        const encoded = encodePayload(packet, state.roomCode);
-        if (!encoded) return;
-
-        const roomHash = getRoomHash(state.roomCode);
-
-        // ENGINE A: HTTPS Cloud Stream (POST to https://ntfy.sh/<roomHash>)
-        // Uses standard HTTPS fetch() — works on 100% of phones, Wi-Fi, 4G/5G, and Vercel!
-        fetch(`https://ntfy.sh/${roomHash}`, {
-          method: 'POST',
-          body: encoded,
-          headers: {
-            'Title': 'UsUninterrupted',
-            'Cache': 'no'
-          }
-        }).catch(() => {});
-
-        // ENGINE B: Firebase Cloud Firestore (if initialized)
-        if (state.fbDb && state.fbUser && packet.type !== 'typing') {
-          try {
-            const docRef = doc(collection(state.fbDb, 'artifacts', state.fbAppId, 'public', 'data', `room_${roomHash}`), packet.packetId);
-            setDoc(docRef, {
-              encoded,
-              createdAt: packet.createdAt
-            }).catch(() => {});
-          } catch (_) {}
-        }
-
-        // ENGINE C: Local BroadcastChannel for 0ms same-browser testing
-        if (state.broadcastChannel) {
-          try {
-            state.broadcastChannel.postMessage(encoded);
-          } catch (_) {}
-        }
-
-        // ENGINE D: WebSocket MQTT Brokers
-        const mqttTopic = `us-uninterrupted-v4/${roomHash}/stream`;
-        state.mqttClients.forEach((client) => {
-          if (client && client.connected) {
-            try {
-              client.publish(mqttTopic, encoded, { qos: 0, retain: false });
-            } catch (_) {}
-          }
-        });
-
-        // ENGINE E: PeerJS WebRTC DataChannel
-        if (state.peerConn && state.peerConn.open) {
-          try {
-            state.peerConn.send(encoded);
-          } catch (_) {}
-        }
-      }
-
-      function handleIncomingEncoded(encoded) {
-        if (!encoded || typeof encoded !== 'string') return;
-        const packet = decodePayload(encoded.trim(), state.roomCode);
-        if (!packet || !packet.packetId) return;
-        if (packet.senderId === state.myId) return;
-        if (state.seenPacketIds.has(packet.packetId)) return;
-        state.seenPacketIds.add(packet.packetId);
-
-        // Update Partner Presence
-        if (packet.senderName) {
-          const isFirstJoin = !state.partnerName;
-          state.partnerName = packet.senderName;
-          state.partnerLastSeen = Date.now();
-          updatePresenceUI(true);
-          if (isFirstJoin) {
-            appendSystemEventPill(`${state.partnerName} joined our private world 💕`);
-            spawnFloatingParticles(['💕', '✨', '🌹'], 10);
-            // Immediately reply with presence ACK so both devices show "Connected" right away!
-            setTimeout(() => {
-              broadcastPacket({ type: 'presence_ack', timestamp: Date.now() });
-            }, 150);
-          }
-        }
-
-        switch (packet.type) {
-          case 'presence':
-          case 'presence_ack':
-            break;
-
-          case 'typing':
-            showPartnerTyping(packet.senderName);
-            break;
-
-          case 'chat':
-            el.typingIndicator.classList.add('hidden');
-            renderChatMessage(packet.message, false);
-            spawnFloatingParticles(['✨', '💗'], 3);
-            break;
-
-          case 'nudge':
-            triggerNudgeVisual(packet.nudgeType, packet.senderName || 'Partner', false);
-            break;
-
-          case 'reaction':
-            applyMessageReaction(packet.messageId, packet.emoji);
-            break;
-
-          case 'leave':
-            appendSystemEventPill(`${packet.senderName || 'Partner'} ended & wiped the session ✨`);
-            state.partnerName = null;
-            updatePresenceUI(false);
-            // Also wipe local messages when partner clicks End & Wipe
-            Array.from(el.messagesContainer.children).slice(1).forEach((node) => node.remove());
-            break;
-        }
-      }
-
-      function sendPresenceHeartbeat() {
-        if (!state.inRoom) return;
-        broadcastPacket({
-          type: 'presence',
-          timestamp: Date.now()
-        });
-
-        if (state.partnerName && Date.now() - state.partnerLastSeen > 22000) {
-          state.partnerName = null;
-          updatePresenceUI(false);
-        }
-      }
-
-      function updatePresenceUI(partnerConnected) {
-        if (partnerConnected && state.partnerName) {
-          el.statusDot.className = 'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-black/60';
-          el.partnerPresenceText.innerHTML = `<span class="text-emerald-400 font-semibold">● Connected with ${escapeHtml(state.partnerName)} 💕</span>`;
-          el.connectionSubtitle.textContent = `Connected privately with ${state.partnerName} ✨`;
-        } else {
-          el.statusDot.className = 'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-400 ring-2 ring-black/60 animate-pulse';
-          el.partnerPresenceText.textContent = 'Waiting for her to join...';
-          el.connectionSubtitle.textContent = `Room #${state.roomCode} ready • Waiting for partner`;
-        }
-      }
-
-      function showPartnerTyping(name) {
-        el.typingText.textContent = `${name || 'She'} is writing something sweet...`;
-        el.typingIndicator.classList.remove('hidden');
-        clearTimeout(state.typingTimeout);
-        state.typingTimeout = setTimeout(() => {
-          el.typingIndicator.classList.add('hidden');
-        }, 2800);
-      }
-
-      function connectRoomTransports() {
-        cleanupTransports();
-
-        const roomHash = getRoomHash(state.roomCode);
-        const mqttTopic = `us-uninterrupted-v4/${roomHash}/stream`;
-
-        // 1. HTTPS Cloud EventStream (ntfy.sh SSE) — Works across any mobile carrier or Wi-Fi!
-        try {
-          const es = new EventSource(`https://ntfy.sh/${roomHash}/sse`);
-          state.ntfyEventSource = es;
-          es.onmessage = (ev) => {
-            try {
-              const data = JSON.parse(ev.data);
-              if (data && data.event === 'message' && data.message) {
-                handleIncomingEncoded(data.message);
-              }
-            } catch (_) {}
-          };
-        } catch (_) {}
-
-        // 2. Firebase Cloud Firestore Listener (if initialized)
-        if (state.fbDb && state.fbUser) {
-          try {
-            const colRef = collection(state.fbDb, 'artifacts', state.fbAppId, 'public', 'data', `room_${roomHash}`);
-            state.fbUnsubscribe = onSnapshot(
-              colRef,
-              (snapshot) => {
-                snapshot.docChanges().forEach((change) => {
-                  if (change.type === 'added') {
-                    const docData = change.doc.data();
-                    if (docData && docData.encoded) {
-                      handleIncomingEncoded(docData.encoded);
-                    }
-                  }
-                });
-              },
-              () => {}
-            );
-          } catch (_) {}
-        }
-
-        // 3. BroadcastChannel for instant local multi-tab testing
-        if ('BroadcastChannel' in window) {
-          try {
-            state.broadcastChannel = new BroadcastChannel(mqttTopic);
-            state.broadcastChannel.onmessage = (ev) => {
-              if (ev && ev.data) handleIncomingEncoded(ev.data);
-            };
-          } catch (_) {}
-        }
-
-        // 4. Redundant Public WSS MQTT Brokers
-        const brokers = [
-          'wss://broker.emqx.io:8084/mqtt',
-          'wss://broker.hivemq.com:8884/mqtt',
-          'wss://test.mosquitto.org:8081/mqtt'
-        ];
-
-        brokers.forEach((brokerUrl) => {
-          try {
-            const client = mqtt.connect(brokerUrl, {
-              keepalive: 25,
-              reconnectPeriod: 3500,
-              connectTimeout: 8000,
-              clean: true
-            });
-
-            client.on('connect', () => {
-              client.subscribe(mqttTopic, { qos: 0 });
-            });
-
-            client.on('message', (receivedTopic, payload) => {
-              if (receivedTopic === mqttTopic && payload) {
-                handleIncomingEncoded(payload.toString());
-              }
-            });
-
-            state.mqttClients.push(client);
-          } catch (_) {}
-        });
-
-        // 5. PeerJS WebRTC Direct Fallback
-        if (typeof Peer !== 'undefined') {
-          try {
-            const hostPeerId = 'usuninterrupted_' + roomHash + '_host';
-            const peer = new Peer(hostPeerId);
-            state.peer = peer;
-
-            peer.on('connection', (conn) => {
-              state.peerConn = conn;
-              conn.on('data', (data) => handleIncomingEncoded(String(data)));
-              conn.on('open', () => sendPresenceHeartbeat());
-            });
-
-            peer.on('error', (err) => {
-              if (err && err.type === 'unavailable-id') {
-                const guestPeer = new Peer();
-                state.peer = guestPeer;
-                guestPeer.on('open', () => {
-                  const conn = guestPeer.connect(hostPeerId);
-                  state.peerConn = conn;
-                  conn.on('open', () => sendPresenceHeartbeat());
-                  conn.on('data', (data) => handleIncomingEncoded(String(data)));
-                });
-              }
-            });
-          } catch (_) {}
-        }
-
-        // Announce join immediately and start heartbeat every 5 seconds
-        sendPresenceHeartbeat();
-        state.heartbeatInterval = setInterval(sendPresenceHeartbeat, 5000);
-
-        state.sessionStartTime = Date.now();
-        el.sessionTimerBadge.classList.remove('hidden');
-        state.timerInterval = setInterval(() => {
-          const elapsed = Math.floor((Date.now() - state.sessionStartTime) / 1000);
-          const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
-          const secs = String(elapsed % 60).padStart(2, '0');
-          el.sessionTimerBadge.textContent = `${mins}:${secs}`;
-        }, 1000);
-      }
-
-      async function wipeCloudRoomData() {
-        if (state.fbDb && state.fbUser) {
-          try {
-            const roomHash = getRoomHash(state.roomCode);
-            const colRef = collection(state.fbDb, 'artifacts', state.fbAppId, 'public', 'data', `room_${roomHash}`);
-            const snap = await getDocs(colRef);
-            snap.forEach((d) => {
-              deleteDoc(d.ref).catch(() => {});
-            });
-          } catch (_) {}
-        }
-      }
-
-      function cleanupTransports() {
-        clearInterval(state.heartbeatInterval);
-        clearInterval(state.timerInterval);
-
-        if (state.ntfyEventSource) {
-          try { state.ntfyEventSource.close(); } catch (_) {}
-          state.ntfyEventSource = null;
-        }
-
-        if (state.fbUnsubscribe) {
-          try { state.fbUnsubscribe(); } catch (_) {}
-          state.fbUnsubscribe = null;
-        }
-
-        if (state.broadcastChannel) {
-          try { state.broadcastChannel.close(); } catch (_) {}
-          state.broadcastChannel = null;
-        }
-
-        state.mqttClients.forEach((c) => {
-          try { c.end(true); } catch (_) {}
-        });
-        state.mqttClients = [];
-
-        if (state.peer) {
-          try { state.peer.destroy(); } catch (_) {}
-          state.peer = null;
-          state.peerConn = null;
-        }
-      }
-
-      // ======================================================================
-      // 6. ACTIONS: SEND MESSAGE, PHOTO, NUDGE, REACTION, LEAVE
-      // ======================================================================
-      function sendChatMessage(text, imageBase64 = null) {
-        const cleanText = (text || '').trim();
-        if (!cleanText && !imageBase64) return;
-
-        const msgObj = {
-          id: 'm_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now(),
-          sender: state.nickname,
-          text: cleanText,
-          image: imageBase64,
-          replyTo: state.replyingTo ? { ...state.replyingTo } : null,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-
-        renderChatMessage(msgObj, true);
-
-        broadcastPacket({
-          type: 'chat',
-          message: msgObj
-        });
-
-        state.replyingTo = null;
-        el.replyPreviewBar.classList.add('hidden');
-      }
-
-      function sendReaction(messageId, emoji) {
-        applyMessageReaction(messageId, emoji);
-        broadcastPacket({
-          type: 'reaction',
-          messageId,
-          emoji
-        });
-      }
-
-      function sendNudge(nudgeType) {
-        triggerNudgeVisual(nudgeType, state.nickname, true);
-        broadcastPacket({
-          type: 'nudge',
-          nudgeType
-        });
-      }
-
-      function handlePhotoSelection(file) {
-        if (!file || !file.type.startsWith('image/')) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_DIM = 480;
-            let w = img.width;
-            let h = img.height;
-            if (w > h && w > MAX_DIM) {
-              h = Math.round((h * MAX_DIM) / w);
-              w = MAX_DIM;
-            } else if (h > MAX_DIM) {
-              w = Math.round((w * MAX_DIM) / h);
-              h = MAX_DIM;
-            }
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.62);
-            sendChatMessage(el.messageInput.value, dataUrl);
-            el.messageInput.value = '';
-          };
-          img.src = ev.target.result;
-        };
-        reader.readAsDataURL(file);
-      }
-
-      // ======================================================================
-      // 7. CLEAN VERCEL EXPORTER (STRIPS ALL INJECTED PREVIEW SCRIPTS!)
-      // ======================================================================
-      function downloadCleanVercelHtml() {
-        const clone = document.documentElement.cloneNode(true);
-        // Strip any sandbox scripts injected by the preview iframe
-        clone.querySelectorAll('script[data-bard-client-injected], script[ws-interception-config]').forEach((s) => s.remove());
-
-        // Reset dynamic view states in the exported file so it opens cleanly on the Welcome screen
-        const welcome = clone.querySelector('#welcome-view');
-        const chat = clone.querySelector('#chat-view');
-        if (welcome) welcome.classList.remove('hidden');
-        if (chat) chat.classList.add('hidden');
-
-        const cleanHtml = '<!DOCTYPE html>\n' + clone.outerHTML;
-        const blob = new Blob([cleanHtml], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'index.html';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('Downloaded clean index.html for Vercel! ✨', 'ph-download-simple');
-      }
-
-      // ======================================================================
-      // 8. EVENT LISTENERS & INITIALIZATION
-      // ======================================================================
-      function setTheme(themeName) {
-        if (!THEMES.includes(themeName)) return;
-        el.html.setAttribute('data-theme', themeName);
-        document.querySelectorAll('[data-set-theme]').forEach((btn) => {
-          btn.classList.toggle('active', btn.getAttribute('data-set-theme') === themeName);
-        });
-      }
-
-      function initEvents() {
-        document.querySelectorAll('[data-set-theme]').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            setTheme(btn.getAttribute('data-set-theme'));
-          });
-        });
-
-        el.mobileThemeBtn.addEventListener('click', () => {
-          const current = el.html.getAttribute('data-theme') || 'midnight-rose';
-          const next = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length];
-          setTheme(next);
-          showToast(`Ambient mood: ${next.replace('-', ' ')} ✨`, 'ph-palette');
-        });
-
-        el.toggleNoteEditorBtn.addEventListener('click', () => {
-          el.customNoteDrawer.classList.toggle('hidden');
-        });
-
-        el.customTitleInput.addEventListener('input', () => {
-          const val = el.customTitleInput.value.trim() || 'Our Private Sanctuary ✨';
-          state.customTitle = val;
-          el.heroTitleDisplay.textContent = val;
-          el.modalNoteTitle.textContent = val;
-        });
-
-        el.customNoteInput.addEventListener('input', () => {
-          const val = el.customNoteInput.value.trim() || 'A quiet little world I made just for the two of us—where we can talk, laugh, and linger for as long as we like.';
-          state.customNote = val;
-          el.heroNoteDisplay.textContent = val;
-          el.modalNoteBody.textContent = val;
-        });
-
-        el.randomCodeBtn.addEventListener('click', () => {
-          const pick = ROMANTIC_CODES[Math.floor(Math.random() * ROMANTIC_CODES.length)] + '-' + Math.floor(10 + Math.random() * 89);
-          el.roomCodeInput.value = pick;
-          state.roomCode = pick;
-          showToast(`New code: ${pick}`, 'ph-magic-wand');
-        });
-
-        el.quickCopyCodeBtn.addEventListener('click', () => {
-          const code = normalizeRoomCode(el.roomCodeInput.value);
-          el.roomCodeInput.value = code;
-          copyTextReliable(code).then(() => showToast(`Room Code ${code} copied!`, 'ph-copy'));
-        });
-
-        el.welcomeShareBtn.addEventListener('click', openInviteModal);
-        el.welcomeTestTabBtn.addEventListener('click', openPartnerTestTab);
-        el.headerInviteBtn.addEventListener('click', openInviteModal);
-        el.inlineInviteBtn.addEventListener('click', openInviteModal);
-        el.inlineTestPartnerBtn.addEventListener('click', openPartnerTestTab);
-
-        el.closeInviteModalBtn.addEventListener('click', () => el.inviteModal.classList.add('hidden'));
-        el.modalCopyCodeBtn.addEventListener('click', () => {
-          copyTextReliable(state.roomCode).then(() => showToast('Room code copied!', 'ph-copy'));
-        });
-        el.modalCopyLinkBtn.addEventListener('click', () => {
-          copyTextReliable(el.modalInviteLinkInput.value).then(() => showToast('Magic invite link copied 💕', 'ph-check-circle'));
-        });
-        el.modalOpenPartnerTabBtn.addEventListener('click', openPartnerTestTab);
-
-        el.openLoveNoteModalBtn.addEventListener('click', () => el.loveNoteModal.classList.remove('hidden'));
-        el.closeLoveNoteModalBtn.addEventListener('click', () => el.loveNoteModal.classList.add('hidden'));
-
-        el.joinRoomForm.addEventListener('submit', (e) => {
-          e.preventDefault();
-          state.nickname = el.nicknameInput.value.trim() || 'My Love';
-          state.roomCode = normalizeRoomCode(el.roomCodeInput.value);
-          el.roomCodeInput.value = state.roomCode;
-          state.inRoom = true;
-
-          el.roomCodePill.textContent = `#${state.roomCode}`;
-          el.welcomeView.classList.add('hidden');
-          el.chatView.classList.remove('hidden');
-          el.headerInviteBtn.classList.remove('hidden');
-          el.leaveRoomBtn.classList.remove('hidden');
-
-          updatePresenceUI(false);
-          connectRoomTransports();
-          el.messageInput.focus();
-        });
-
-        el.leaveRoomBtn.addEventListener('click', async () => {
-          if (state.inRoom) {
-            broadcastPacket({ type: 'leave' });
-            await wipeCloudRoomData();
-          }
-          state.inRoom = false;
-          state.partnerName = null;
-          cleanupTransports();
-
-          Array.from(el.messagesContainer.children).slice(1).forEach((node) => node.remove());
-          el.chatView.classList.add('hidden');
-          el.welcomeView.classList.remove('hidden');
-          el.headerInviteBtn.classList.add('hidden');
-          el.leaveRoomBtn.classList.add('hidden');
-          el.sessionTimerBadge.classList.add('hidden');
-          el.connectionSubtitle.textContent = 'A private space made just for the two of us ✨';
-          showToast('Session ended & all messages wiped ✨', 'ph-sparkle');
-        });
-
-        el.messageInput.addEventListener('input', () => {
-          el.messageInput.style.height = 'auto';
-          el.messageInput.style.height = Math.min(el.messageInput.scrollHeight, 120) + 'px';
-
-          if (state.inRoom && Date.now() - state.lastTypingSent > 2200) {
-            state.lastTypingSent = Date.now();
-            broadcastPacket({ type: 'typing' });
-          }
-        });
-
-        el.messageInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            el.messageForm.requestSubmit();
-          }
-        });
-
-        el.quickHeartInsertBtn.addEventListener('click', () => {
-          el.messageInput.value += ' ❤️';
-          el.messageInput.focus();
-        });
-
-        el.messageForm.addEventListener('submit', (e) => {
-          e.preventDefault();
-          const text = el.messageInput.value;
-          if (!text.trim()) return;
-          sendChatMessage(text, null);
-          el.messageInput.value = '';
-          el.messageInput.style.height = 'auto';
-        });
-
-        el.cancelReplyBtn.addEventListener('click', () => {
-          state.replyingTo = null;
-          el.replyPreviewBar.classList.add('hidden');
-        });
-
-        document.querySelectorAll('[data-nudge]').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            sendNudge(btn.getAttribute('data-nudge'));
-          });
-        });
-
-        el.photoUploadInput.addEventListener('change', (e) => {
-          const file = e.target.files && e.target.files[0];
-          if (file) handlePhotoSelection(file);
-          e.target.value = '';
-        });
-
-        el.lightboxModal.addEventListener('click', () => {
-          el.lightboxModal.classList.add('hidden');
-          el.lightboxImg.src = '';
-        });
-
-        el.disguiseBtn.addEventListener('click', () => {
-          el.disguiseOverlay.classList.remove('hidden');
-        });
-        el.exitDisguiseBtn.addEventListener('click', () => {
-          el.disguiseOverlay.classList.add('hidden');
-        });
-        el.disguiseHeader.addEventListener('dblclick', () => {
-          el.disguiseOverlay.classList.add('hidden');
-        });
-        window.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape') {
-            if (!el.inviteModal.classList.contains('hidden')) {
-              el.inviteModal.classList.add('hidden');
-            } else if (!el.loveNoteModal.classList.contains('hidden')) {
-              el.loveNoteModal.classList.add('hidden');
-            } else if (!el.lightboxModal.classList.contains('hidden')) {
-              el.lightboxModal.classList.add('hidden');
-            } else {
-              el.disguiseOverlay.classList.toggle('hidden');
-            }
-          }
-        });
-
-        el.downloadAppBtn.addEventListener('click', downloadCleanVercelHtml);
-
-        window.addEventListener('beforeunload', () => {
-          if (state.inRoom) {
-            broadcastPacket({ type: 'leave' });
-          }
-        });
-      }
-
-      function hydrateFromUrlParams() {
-        const params = new URLSearchParams(window.location.search);
-        const roomParam = params.get('room');
-        const titleParam = params.get('title');
-        const noteParam = params.get('note');
-        const isPartnerTest = params.get('partnerTest') === '1';
-
-        if (roomParam) {
-          state.roomCode = normalizeRoomCode(roomParam);
-          el.roomCodeInput.value = state.roomCode;
-        } else {
-          el.roomCodeInput.value = state.roomCode;
-        }
-
-        if (titleParam) {
-          state.customTitle = titleParam;
-          el.customTitleInput.value = titleParam;
-          el.heroTitleDisplay.textContent = titleParam;
-          el.modalNoteTitle.textContent = titleParam;
-        }
-
-        if (noteParam) {
-          state.customNote = noteParam;
-          el.customNoteInput.value = noteParam;
-          el.heroNoteDisplay.textContent = noteParam;
-          el.modalNoteBody.textContent = noteParam;
-          el.loveNoteModal.classList.remove('hidden');
-        }
-
-        if (isPartnerTest && roomParam) {
-          el.nicknameInput.value = 'My Fiancée 💕';
-          setTimeout(() => {
-            el.joinRoomForm.requestSubmit();
-          }, 250);
-        }
-      }
-
-      window.addEventListener('DOMContentLoaded', async () => {
-        initBokehCanvas();
-        initEvents();
-        hydrateFromUrlParams();
-        await initFirebaseBackend();
-      });
-    })();
-  </script>
-
-</body></html>
+    <div class="actions">
+      <button id="invite" type="button">Invite</button>
+      <button id="clear" type="button">Clear</button>
+      <button id="leave" type="button">Leave</button>
+    </div>
+  </header>
+  <div id="list"></div>
+  <div id="typing"></div>
+  <form id="composer">
+    <label class="icon-btn" for="file" title="Send photo" style="margin:0;cursor:pointer">📎</label>
+    <input id="file" type="file" accept="image/*" class="hidden">
+    <textarea id="input" rows="1" placeholder="Message"></textarea>
+    <button id="send" class="icon-btn" type="submit" title="Send">➤</button>
+  </form>
+</div>
+
+<div id="toast"></div>
+<div id="lightbox" class="hidden"><img alt=""></div>
+
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script>
+(() => {
+'use strict';
+
+/* ---------------------------------------------------------------
+   Design notes (two-person use)
+   - Two public MQTT brokers are used at the same time. Messages are
+     sent to both and de-duplicated, so there is no "split brain" if
+     one broker is down, and no failover logic to go wrong.
+   - Everything is AES-GCM encrypted with a key derived from the room
+     code, so the public brokers only ever see ciphertext.
+   - No heartbeat spam: one tiny presence ping every 20s.
+   - No framework, no icon fonts, no animations, no blur effects.
+---------------------------------------------------------------- */
+
+const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt'];
+const PRESENCE_EVERY = 20000;
+const PRESENCE_TIMEOUT = 55000;
+const MAX_HISTORY = 200;
+const MAX_IMAGE_CHARS = 140000;
+
+const $ = (id) => document.getElementById(id);
+const enc = new TextEncoder(), dec = new TextDecoder();
+const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+const S = {
+  me: sessionStorage.getItem('qc-id') || (() => { const v = rid(); sessionStorage.setItem('qc-id', v); return v; })(),
+  name: '', room: '', topic: '', key: null,
+  clients: [], connected: 0,
+  partner: null, partnerOnline: false, lastSeen: 0,
+  msgs: [], els: new Map(), seen: new Set(),
+  lastTypingSent: 0, typingTimer: null,
+  presenceTimer: null, checkTimer: null, saveTimer: null,
+  byePayload: null, unread: 0
+};
+
+/* ---------- crypto ---------- */
+function b64e(u8) {
+  let s = '';
+  for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function b64d(s) {
+  const b = atob(s), u = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u;
+}
+async function deriveKeys(code) {
+  const base = await crypto.subtle.importKey('raw', enc.encode(code), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: enc.encode('quiet-chat-v1:' + code), iterations: 150000, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode('topic:' + code)));
+  const topic = 'quietchat/v1/' + Array.from(h.slice(0, 16), (b) => b.toString(16).padStart(2, '0')).join('');
+  return { key, topic };
+}
+async function seal(obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, S.key, enc.encode(JSON.stringify(obj))));
+  const out = new Uint8Array(12 + ct.length);
+  out.set(iv); out.set(ct, 12);
+  return b64e(out);
+}
+async function unseal(str) {
+  try {
+    const b = b64d(str);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.slice(0, 12) }, S.key, b.slice(12));
+    return JSON.parse(dec.decode(pt));
+  } catch { return null; }
+}
+
+/* ---------- transport ---------- */
+function publishRaw(payload, qos, onOk) {
+  let done = false;
+  for (const c of S.clients) {
+    if (qos === 0 && !c.connected) continue;          // never queue typing/presence
+    c.publish(S.topic, payload, { qos }, (err) => {
+      if (!err && !done) { done = true; if (onOk) onOk(); }
+    });
+  }
+}
+async function send(obj, qos = 0, onOk) {
+  obj.pid = obj.pid || rid();
+  obj.from = S.me;
+  obj.name = S.name;
+  publishRaw(await seal(obj), qos, onOk);
+}
+
+function connectAll() {
+  S.clients = BROKERS.map((url) => {
+    const c = mqtt.connect(url, {
+      clientId: 'qc_' + S.me,
+      clean: false,                 // lets the broker hold messages briefly while one side is offline
+      keepalive: 30,
+      reconnectPeriod: 2000,
+      connectTimeout: 8000,
+      queueQoSZero: false,
+      resubscribe: true
+    });
+    let up = false;
+    c.on('connect', () => {
+      if (!up) { up = true; S.connected++; }
+      c.subscribe(S.topic, { qos: 1 });
+      renderStatus();
+      send({ t: 'hello' });
+    });
+    c.on('close', () => { if (up) { up = false; S.connected--; renderStatus(); } });
+    c.on('error', () => {});
+    c.on('message', (_t, payload) => onPayload(payload.toString()));
+    return c;
+  });
+
+  S.presenceTimer = setInterval(() => send({ t: 'hello', re: 1 }), PRESENCE_EVERY);
+  S.checkTimer = setInterval(() => {
+    if (S.partnerOnline && Date.now() - S.lastSeen > PRESENCE_TIMEOUT) { S.partnerOnline = false; renderStatus(); }
+  }, 10000);
+}
+
+function disconnectAll() {
+  clearInterval(S.presenceTimer); clearInterval(S.checkTimer);
+  for (const c of S.clients) { try { c.end(true); } catch {} }
+  S.clients = []; S.connected = 0;
+}
+
+async function onPayload(str) {
+  const p = await unseal(str);
+  if (!p || !p.pid || p.from === S.me) return;
+  if (S.seen.has(p.pid)) return;                       // duplicate from the second broker
+  S.seen.add(p.pid);
+  if (S.seen.size > 800) S.seen = new Set(Array.from(S.seen).slice(-400));
+
+  if (p.name) S.partner = p.name;
+  if (p.t === 'bye') { S.partnerOnline = false; renderStatus(); return; }
+  S.lastSeen = Date.now();
+  if (!S.partnerOnline) { S.partnerOnline = true; }
+  renderStatus();
+
+  switch (p.t) {
+    case 'hello': if (!p.re) send({ t: 'hello', re: 1 }); break;
+    case 'typing': showTyping(); break;
+    case 'ack': markDelivered(p.id); break;
+    case 'msg': receiveMessage(p); break;
+  }
+}
+
+/* ---------- messages ---------- */
+function sendText(text, img) {
+  text = (text || '').trim();
+  if (!text && !img) return;
+  const m = { id: rid(), me: true, name: S.name, text, img: img || null, ts: Date.now(), st: 'pending' };
+  addMessage(m, true);
+  send({ t: 'msg', id: m.id, text, img: m.img, ts: m.ts }, 1, () => setStatusOf(m.id, 'sent'));
+  // If nothing confirmed after 15s, flag it so it is never silently lost.
+  setTimeout(() => { const x = S.msgs.find((q) => q.id === m.id); if (x && x.st === 'pending') setStatusOf(m.id, 'failed'); }, 15000);
+}
+
+function receiveMessage(p) {
+  if (S.msgs.some((m) => m.id === p.id)) return;
+  hideTyping();
+  const m = { id: p.id, me: false, name: p.name, text: p.text || '', img: p.img || null, ts: p.ts || Date.now(), st: 'read' };
+  addMessage(m, false);
+  send({ t: 'ack', id: p.id });
+  if (document.hidden) { S.unread++; document.title = `(${S.unread}) Chat`; }
+}
+
+function setStatusOf(id, st) {
+  const m = S.msgs.find((x) => x.id === id);
+  if (!m || (m.st === 'delivered' && st !== 'delivered')) return;
+  m.st = st; updateTick(m); persist();
+}
+function markDelivered(id) { setStatusOf(id, 'delivered'); }
+
+function tickText(m) {
+  return m.st === 'pending' ? '·' : m.st === 'sent' ? '✓' : m.st === 'delivered' ? '✓✓' : m.st === 'failed' ? '! not sent' : '';
+}
+function updateTick(m) {
+  const row = S.els.get(m.id);
+  if (!row) return;
+  const t = row.querySelector('.tick');
+  t.textContent = tickText(m);
+  t.className = 'tick' + (m.st === 'failed' ? ' fail' : '');
+}
+
+/* ---------- rendering ---------- */
+const list = $('list');
+const nearBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 140;
+const toBottom = () => { list.scrollTop = list.scrollHeight; };
+
+function buildRow(m) {
+  const row = document.createElement('div');
+  row.className = 'row ' + (m.me ? 'me' : 'them');
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  if (m.img) {
+    const im = new Image();
+    im.src = m.img; im.alt = 'Photo';
+    im.onclick = () => { $('lightbox').querySelector('img').src = m.img; $('lightbox').classList.remove('hidden'); };
+    im.onload = () => { if (m.me || nearBottom()) toBottom(); };
+    b.appendChild(im);
+  } else if (m.hadImg) {
+    const n = document.createElement('div'); n.textContent = '📷 Photo (not saved)'; n.style.opacity = '.7'; b.appendChild(n);
+  }
+  if (m.text) { const t = document.createElement('div'); t.textContent = m.text; b.appendChild(t); }
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const time = new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  meta.append(time + (m.me ? ' ' : ''));
+  if (m.me) { const t = document.createElement('span'); t.className = 'tick'; meta.appendChild(t); }
+  b.appendChild(meta);
+  row.appendChild(b);
+  return row;
+}
+
+function addMessage(m, stick) {
+  const wasNear = nearBottom();
+  S.msgs.push(m);
+  const row = buildRow(m);
+  S.els.set(m.id, row);
+  list.appendChild(row);
+  if (m.me) updateTick(m);
+  if (stick || wasNear) toBottom();
+  persist();
+}
+
+function renderStatus() {
+  const dot = $('dot'), txt = $('status');
+  if (S.connected === 0) { dot.className = 'dot'; txt.textContent = 'Connecting…'; return; }
+  if (S.partnerOnline) { dot.className = 'dot on'; txt.textContent = (S.partner || 'Partner') + ' · online'; }
+  else { dot.className = 'dot wait'; txt.textContent = S.partner ? S.partner + ' · offline' : 'Waiting for partner…'; }
+  $('title').textContent = S.partner || 'Chat';
+}
+
+function showTyping() {
+  $('typing').textContent = (S.partner || 'Partner') + ' is typing…';
+  clearTimeout(S.typingTimer);
+  S.typingTimer = setTimeout(hideTyping, 3000);
+}
+function hideTyping() { $('typing').textContent = ''; clearTimeout(S.typingTimer); }
+
+let toastTimer;
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------- local history (text only, last 200) ---------- */
+function persist() {
+  clearTimeout(S.saveTimer);
+  S.saveTimer = setTimeout(() => {
+    try {
+      const slim = S.msgs.slice(-MAX_HISTORY).map((m) => ({ ...m, img: null, hadImg: !!(m.img || m.hadImg) }));
+      localStorage.setItem('qc:' + S.topic, JSON.stringify(slim));
+    } catch {}
+  }, 400);
+}
+function loadHistory() {
+  try {
+    const arr = JSON.parse(localStorage.getItem('qc:' + S.topic) || '[]');
+    const frag = document.createDocumentFragment();
+    for (const m of arr) {
+      if (m.st === 'pending') m.st = 'failed';
+      S.msgs.push(m);
+      const row = buildRow(m);
+      S.els.set(m.id, row);
+      frag.appendChild(row);
+      S.seen.add(m.id);
+    }
+    list.appendChild(frag);
+    S.msgs.forEach((m) => m.me && updateTick(m));
+    toBottom();
+  } catch {}
+}
+
+/* ---------- photos ---------- */
+async function shrinkImage(file) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  let max = 800, q = 0.7, url = '';
+  for (let i = 0; i < 6; i++) {
+    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    url = c.toDataURL('image/jpeg', q);
+    if (url.length <= MAX_IMAGE_CHARS) break;
+    max *= 0.8; q = Math.max(0.4, q - 0.08);
+  }
+  if (bmp.close) bmp.close();
+  if (url.length > MAX_IMAGE_CHARS) throw new Error('too big');
+  return url;
+}
+
+/* ---------- join / leave ---------- */
+function normRoom(v) { return (v || '').trim().toLowerCase(); }
+
+function inviteUrl() {
+  return location.origin + location.pathname + '?room=' + encodeURIComponent(S.room);
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;left:-999px';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch {}
+    ta.remove(); return ok;
+  }
+}
+
+$('join-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('join-error'); err.textContent = '';
+  if (!window.crypto || !crypto.subtle) { err.textContent = 'Needs HTTPS (or localhost) to encrypt messages.'; return; }
+  if (typeof mqtt === 'undefined') { err.textContent = 'Could not load the network library. Check your connection and reload.'; return; }
+  const name = $('name').value.trim();
+  const room = normRoom($('room').value);
+  if (room.length < 6) { err.textContent = 'Room code must be at least 6 characters.'; return; }
+  try { localStorage.setItem('qc-name', name); } catch {}
+
+  const btn = e.submitter; if (btn) btn.disabled = true;
+  try {
+    const { key, topic } = await deriveKeys(room);
+    S.name = name; S.room = room; S.key = key; S.topic = topic;
+    S.byePayload = await seal({ t: 'bye', from: S.me, name, pid: 'bye_' + rid() });
+  } catch { err.textContent = 'Could not start encryption.'; if (btn) btn.disabled = false; return; }
+  if (btn) btn.disabled = false;
+
+  $('join').classList.add('hidden');
+  $('chat').classList.remove('hidden');
+  list.textContent = ''; S.msgs = []; S.els.clear(); S.seen.clear();
+  S.partner = null; S.partnerOnline = false;
+  loadHistory();
+  renderStatus();
+  connectAll();
+  if (matchMedia('(pointer:fine)').matches) $('input').focus();
+});
+
+$('gen').addEventListener('click', () => {
+  const a = crypto.getRandomValues(new Uint8Array(9));
+  $('room').value = Array.from(a, (b) => (b % 36).toString(36)).join('').replace(/(.{3})(?=.)/g, '$1-');
+});
+
+$('leave').addEventListener('click', () => {
+  if (S.key && S.byePayload) publishRaw(S.byePayload, 0);
+  setTimeout(disconnectAll, 150);
+  $('chat').classList.add('hidden');
+  $('join').classList.remove('hidden');
+  S.key = null; S.topic = '';
+  document.title = 'Chat';
+});
+
+$('clear').addEventListener('click', () => {
+  if (!confirm('Clear the chat on this device? (The other person keeps their copy.)')) return;
+  try { localStorage.removeItem('qc:' + S.topic); } catch {}
+  S.msgs = []; S.els.clear(); list.textContent = '';
+});
+
+$('invite').addEventListener('click', async () => {
+  await copy(inviteUrl());
+  toast('Invite link copied');
+});
+
+/* ---------- composer ---------- */
+const input = $('input');
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  const now = Date.now();
+  if (now - S.lastTypingSent > 2500) { S.lastTypingSent = now; send({ t: 'typing' }); }
+});
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) {
+    e.preventDefault(); $('composer').requestSubmit();
+  }
+});
+$('composer').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!input.value.trim()) return;
+  sendText(input.value);
+  input.value = ''; input.style.height = 'auto';
+  S.lastTypingSent = 0;
+  input.focus();
+});
+$('file').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!f || !f.type.startsWith('image/')) return;
+  try { sendText('', await shrinkImage(f)); }
+  catch { toast('Could not send that photo'); }
+});
+
+$('lightbox').addEventListener('click', () => { $('lightbox').classList.add('hidden'); $('lightbox').querySelector('img').src = ''; });
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('lightbox').classList.add('hidden'); });
+
+/* ---------- lifecycle ---------- */
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    S.unread = 0; document.title = 'Chat';
+    if (S.key) send({ t: 'hello' });               // re-announce after returning from background
+  }
+});
+window.addEventListener('pagehide', () => { if (S.key && S.byePayload) publishRaw(S.byePayload, 0); });
+
+/* ---------- init ---------- */
+(function init() {
+  try { $('name').value = localStorage.getItem('qc-name') || ''; } catch {}
+  const q = new URLSearchParams(location.search).get('room');
+  if (q) $('room').value = q;
+})();
+
+})();
+</script>
+</body>
+</html>
